@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Réception du <%= deliveryDate %> – Boutique</title>
+  <link rel="stylesheet" href="/public/css/style.css" />
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+        <div class="panel">
+      <h1>Réception – <%= deliveryDate %></h1>
+      <% if (!order) { %>
+        <p>Aucune commande verrouillée pour cette date.</p>
+      <% } else { %>
+        <p><strong>Statut livraison:</strong> <%= order.delivered ? 'Remise au livreur' : 'Pas encore remise' %></p>
+        <p><strong>Réception validée:</strong> <%= order.received ? 'Oui' : 'Non' %></p>
+        <table class="table">
+          <thead><tr><th>Produit</th><th style="text-align:right">Quantité</th></tr></thead>
+          <tbody>
+          <% items.forEach(item => { %>
+            <tr class="row"><td><%= item.name %></td><td style="text-align:right"><%= item.final_quantity %></td></tr>
+          <% }) %>
+          </tbody>
+        </table>
+        <% if (!order.received) { %>
+          <form action="/boutique/reception/<%= order.id %>" method="post" style="margin-top:10px;">
+            <input type="hidden" name="date" value="<%= deliveryDate %>" />
+            <button class="btn ok" type="submit">Confirmer réception</button>
+          </form>
+        <% } else { %>
+          <p class="ok">Réception déjà confirmée.</p>
+        <% } %>
+      <% } %>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
