@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: orderflow-pro
+    env: node
+    rootDir: .
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TZ
+        value: Europe/Paris
+      - key: DB_PATH
+        value: /var/data/orderflow.sqlite
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
