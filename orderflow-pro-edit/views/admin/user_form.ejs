@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= user ? 'Modifier l’utilisateur' : 'Nouvel utilisateur' %> - Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+  <script>
+    function toggleBoutique() {
+      const roleSelect = document.getElementById('role');
+      const boutiqueGroup = document.getElementById('boutiqueGroup');
+      if (roleSelect.value === 'boutique') {
+        boutiqueGroup.style.display = 'block';
+      } else {
+        boutiqueGroup.style.display = 'none';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', toggleBoutique);
+  </script>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+    <h1><%= user ? 'Modifier l’utilisateur' : 'Nouvel utilisateur' %></h1>
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+    <form action="<%= user ? '/admin/users/' + user.id + '/edit' : '/admin/users/new' %>" method="post">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="text" name="email" id="email" value="<%= user ? user.email : '' %>" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Mot de passe <%= user ? '(laisser vide pour ne pas modifier)' : '' %></label>
+        <input type="password" name="password" id="password" <%= user ? '' : 'required' %> >
+      </div>
+      <div class="form-group">
+        <label for="role">Rôle</label>
+        <select name="role" id="role" onchange="toggleBoutique()" required>
+          <option value="admin" <%= user && user.role === 'admin' ? 'selected' : '' %>>admin</option>
+          <option value="labo" <%= user && user.role === 'labo' ? 'selected' : '' %>>labo</option>
+          <option value="boutique" <%= user && user.role === 'boutique' ? 'selected' : '' %>>boutique</option>
+        </select>
+      </div>
+      <div class="form-group" id="boutiqueGroup" style="display:none">
+        <label for="boutique_id">Boutique</label>
+        <select name="boutique_id" id="boutique_id">
+          <% boutiques.forEach(function(b) { %>
+            <option value="<%= b.id %>" <%= user && user.boutique_id == b.id ? 'selected' : '' %>><%= b.name %></option>
+          <% }); %>
+        </select>
+      </div>
+      <button type="submit" class="button"><%= user ? 'Mettre à jour' : 'Créer' %></button>
+    </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

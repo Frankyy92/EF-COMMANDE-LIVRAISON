@@ -32,18 +32,13 @@
                    if (!order.locked) {
                      statusLabel = 'Non traité';
                      statusClass = 'status-non-traite';
-                   } else if (order.locked && !order.delivered) {
-                     statusLabel = 'En cours';
-                     statusClass = 'status-en-cours';
-                   } else if (order.delivered && !order.received) {
-                     statusLabel = 'Terminé';
-                     statusClass = 'status-termine';
                    } else if (order.received) {
                      statusLabel = 'Livré';
                      statusClass = 'status-livre';
                    } else {
-                     statusLabel = 'Indéfini';
-                     statusClass = '';
+                     // Commande verrouillée mais pas encore réceptionnée : considérée comme validée
+                     statusLabel = 'Commande validée';
+                     statusClass = 'status-validee';
                    }
                 %>
                 <tr class="row">

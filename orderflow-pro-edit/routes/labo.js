@@ -151,13 +151,10 @@ router.get('/recap', (req, res) => {
 function getOrderStatus(order) {
   // Non traité : pas encore verrouillée
   if (!order.locked) return 'Non traité';
-  // En cours : verrouillée mais pas encore remise au livreur
-  if (order.locked && !order.delivered) return 'En cours';
-  // Terminé : remise au livreur mais pas encore réceptionnée par la boutique
-  if (order.delivered && !order.received) return 'Terminé';
-  // Livré : réception confirmée
+  // Si la commande est reçue par la boutique, considérer comme livrée
   if (order.received) return 'Livré';
-  return 'Indéfini';
+  // Toutes les commandes verrouillées mais non reçues sont considérées comme validées
+  return 'Commande validée';
 }
 
 // Page récapitulatif des commandes pour une date donnée. On utilise également cette route pour la page sans paramètre en lisant query ?date

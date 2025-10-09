@@ -1,12 +1,12 @@
 <div class="sidebar">
-  <div class="sidebar-header">
-    <% if (currentUser) { %>
-      <img src="/public/img/ef-logo.png" alt="EF" class="sidebar-logo" />
-      <div class="sidebar-title">Orderflow</div>
-    <% } else { %>
-      <div class="sidebar-title">Orderflow</div>
-    <% } %>
-  </div>
+<div class="sidebar-header">
+  <% if (currentUser) { %>
+    <img src="/public/img/ef-logo.png" alt="EF" class="sidebar-logo" />
+  <% } %>
+  <div class="sidebar-title">Orderflow</div>
+  <!-- Bouton pour réduire/agrandir la barre latérale -->
+  <button id="toggleSidebar" class="sidebar-toggle" type="button">☰</button>
+</div>
   <% if (currentUser) { %>
     <ul class="nav-links">
       <% if (currentUser.role === 'admin') { %>
@@ -29,3 +29,19 @@
     </ul>
   <% } %>
 </div>
+
+<!-- Script de bascule de la barre latérale -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var toggleBtn = document.getElementById('toggleSidebar');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+          sidebar.classList.toggle('collapsed');
+        }
+      });
+    }
+  });
+</script>

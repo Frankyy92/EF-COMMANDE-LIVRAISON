@@ -224,6 +224,15 @@ input:focus,select:focus{
 .status-livre{
   background:var(--ok);
 }
+/* Statut pour une commande validée (verrouillée). Utilise la couleur verte pour signifier que la commande est prête */
+.status-validee{
+  background: var(--ok);
+}
+
+/* Indique une quantité finale inférieure à la quantité commandée (rupture ou ajustement). */
+.reduced{
+  color: var(--danger);
+}
 
 /*
   Catégorisation et filtres
@@ -346,6 +355,33 @@ input:focus,select:focus{
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
+}
+
+/* Bouton de bascule de la barre latérale */
+.sidebar-toggle {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+/* Mode réduit de la barre latérale */
+.sidebar.collapsed {
+  width: 60px;
+  overflow: hidden;
+}
+.sidebar.collapsed .sidebar-title {
+  display: none;
+}
+.sidebar.collapsed .nav-links {
+  display: none;
+}
+.sidebar.collapsed .sidebar-logo {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
 }
 .sidebar-header {
   margin-bottom: 24px;

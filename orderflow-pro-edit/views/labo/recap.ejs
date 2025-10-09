@@ -32,10 +32,8 @@
             <% let statusClass;
                if (order.statusLabel === 'Non traité') {
                  statusClass = 'status-non-traite';
-               } else if (order.statusLabel === 'En cours') {
-                 statusClass = 'status-en-cours';
-               } else if (order.statusLabel === 'Terminé') {
-                 statusClass = 'status-termine';
+               } else if (order.statusLabel === 'Commande validée') {
+                 statusClass = 'status-validee';
                } else if (order.statusLabel === 'Livré') {
                  statusClass = 'status-livre';
                } else {
@@ -70,7 +68,7 @@
                     <% order.itemsByCategory[cat].forEach(function(item) { %>
                       <tr class="row">
                         <td><%= item.name %></td>
-                        <td style="text-align:right"><%= item.final_quantity %></td>
+                        <td style="text-align:right" class="<%= item.final_quantity < item.quantity ? 'reduced' : '' %>"><%= item.final_quantity %></td>
                       </tr>
                     <% }); %>
                   <% }); %>
