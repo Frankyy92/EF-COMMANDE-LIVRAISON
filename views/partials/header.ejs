@@ -1,11 +1,12 @@
-<header class="top-bar">
-  <div class="top-bar-content">
-    <div class="top-bar-logo">
-      <img src="/public/img/ef-logo.png" alt="EF" class="top-logo" />
-      <span class="top-title">Orderflow</span>
-    </div>
-    <% if (!currentUser) { %>
-      <a href="/login" class="top-link">Connexion</a>
-    <% } %>
-  </div>
+<header class="topbar">
+  <button class="hamburger" id="navToggle" aria-label="Ouvrir/fermer le menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+
+  <a href="/" class="brand" aria-label="Accueil">
+    <img src="/public/img/ef-logo.png" alt="EF" class="top-logo" />
+    <span class="top-title">Orderflow</span>
+  </a>
+
+  <% if (!currentUser) { %>
+    <a href="/login" class="top-link">Connexion</a>
+  <% } %>
 </header>
