@@ -1,6 +1,7 @@
 // Fichier seed.js — création des comptes et produits par défaut
 const Database = require('better-sqlite3');
-const bcrypt = require('bcrypt');
+// Utiliser bcryptjs pour rester compatible avec les dépendances du projet
+const bcrypt = require('bcryptjs');
 
 const db = new Database(process.env.DB_PATH || './orderflow.sqlite');
 
