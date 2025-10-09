@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= category ? 'Modifier la catégorie' : 'Nouvelle catégorie' %> - Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+    <h1><%= category ? 'Modifier la catégorie' : 'Nouvelle catégorie' %></h1>
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+    <form action="<%= category ? '/admin/categories/' + category.id + '/edit' : '/admin/categories/new' %>" method="post">
+      <div class="form-group">
+        <label for="name">Nom</label>
+        <input type="text" name="name" id="name" value="<%= category ? category.name : '' %>" required>
+      </div>
+      <button type="submit" class="button"><%= category ? 'Mettre à jour' : 'Créer' %></button>
+    </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

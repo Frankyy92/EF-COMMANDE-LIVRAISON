@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Commande du <%= deliveryDate %> – Boutique – Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css"/>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+        <div class="panel">
+      <h1>Ma commande – <%= deliveryDate %></h1>
+      <% if (!editable) { %>
+        <p><strong>La commande est verrouillée ou le délai de saisie est dépassé (cut‑off 21h).</strong></p>
+      <% } else { %>
+        <p>Vous pouvez modifier vos quantités jusqu'à 21h. Les suggestions se basent sur vos ventes passées pour le même jour de semaine.</p>
+      <% } %>
+
+      <!-- Barre de recherche et filtres -->
+      <div class="toolbar">
+        <input id="searchBox" type="text" placeholder="Rechercher un produit… (ex : croissant)" />
+        <div id="catChips">
+          <span class="badge active" data-cat="">Tout</span>
+          <% categories.forEach(function(c) { %>
+            <span class="badge" data-cat="<%= c.name %>"><%= c.name %></span>
+          <% }); %>
+          <span class="badge" data-cat="__FAV">⭐ Favoris</span>
+        </div>
+      </div>
+
+      <% if (editable) { %>
+      <form action="/boutique/order/<%= deliveryDate %>" method="post" id="orderForm">
+      <% } %>
+        <table class="table" id="prodTable">
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th style="width:210px; text-align:right">Quantité</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% categories.forEach(function(cat) { %>
+              <% (productsByCat[cat.id] || []).forEach(function(p) { %>
+                <% const suggested = suggestions[p.id] || 0; const current = orderItems[p.id] || null; %>
+                <tr class="row prod" data-name="<%= p.name.toLowerCase() %>" data-cat="<%= cat.name %>">
+                  <td>
+                    <div style="font-weight:600"><%= p.name %> <small style="color:#8c8c8c">(<%= cat.name %><%= p.is_crude ? ', cru' : '' %>)</small></div>
+                    <div style="font-size:12px;color:#8c8c8c">Suggestion : <%= suggested %></div>
+                  </td>
+                  <td style="text-align:right">
+                    <% if (editable) { %>
+                    <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end">
+                      <button class="btn ghost minus" type="button" data-id="<%= p.id %>">−</button>
+                      <input type="number" min="0" step="1" name="qty_<%= p.id %>" id="qty_<%= p.id %>" value="<%= current !== null ? current : suggested %>" style="width:80px; text-align:center" />
+                      <button class="btn ghost plus" type="button" data-id="<%= p.id %>">+</button>
+                      <button class="btn secondary fav" type="button" data-id="<%= p.id %>" title="Ajouter aux favoris">⭐</button>
+                    </div>
+                    <% } else { %>
+                      <strong><%= current !== null ? current : suggested %></strong>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% }); %>
+          </tbody>
+        </table>
+        <% if (editable) { %>
+        <footer class="sticky">
+          <div>Total articles : <strong id="totalQty">0</strong></div>
+          <div style="display:flex; gap:8px">
+            <button class="btn ghost" type="button" id="keypadBtn">Pavé numérique <span class="kbd">.</span></button>
+            <button class="btn ok" type="submit">Soumettre la commande</button>
+          </div>
+        </footer>
+      </form>
+      <% } %>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Mini pavé numérique flottant -->
+  <div id="keypad" style="position:fixed; right:16px; bottom:16px; display:none;">
+    <div class="panel" style="width:260px; padding:14px">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px">
+        <% ['1','2','3','4','5','6','7','8','9','0','←','OK'].forEach(function(k) { %>
+          <button class="btn <%= k === 'OK' ? 'ok' : '' %>" data-k="<%= k %>"><%= k %></button>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Recherche et filtrage des produits
+    const search = document.getElementById('searchBox');
+    const chips = document.querySelectorAll('#catChips .badge');
+    const rows = Array.from(document.querySelectorAll('#prodTable .prod'));
+    const totalEl = document.getElementById('totalQty');
+    const favKey = 'of_favs';
+    let activeCat = '';
+
+    function loadFavs() {
+      try {
+        return new Set(JSON.parse(localStorage.getItem(favKey) || '[]'));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    function saveFavs(s) {
+      localStorage.setItem(favKey, JSON.stringify(Array.from(s)));
+    }
+    const favs = loadFavs();
+
+    function recomputeTotal() {
+      let total = 0;
+      document.querySelectorAll('#prodTable input[type=number]').forEach(function(i) {
+        total += parseInt(i.value) || 0;
+      });
+      if (totalEl) totalEl.textContent = total;
+    }
+    recomputeTotal();
+
+    function filter() {
+      const q = (search.value || '').toLowerCase();
+      rows.forEach(function(r) {
+        const name = r.dataset.name;
+        const cat = r.dataset.cat;
+        const id = r.querySelector('input') ? r.querySelector('input').id.replace('qty_', '') : null;
+        const isFav = favs.has(id);
+        const byText = !q || name.includes(q);
+        const byCat = !activeCat || activeCat === cat || (activeCat === '__FAV' && isFav);
+        r.style.display = (byText && byCat) ? '' : 'none';
+      });
+    }
+
+    search && search.addEventListener('input', filter);
+    chips.forEach(function(c) {
+      c.addEventListener('click', function() {
+        chips.forEach(function(x) { x.classList.remove('active'); });
+        c.classList.add('active');
+        activeCat = c.dataset.cat || '';
+        filter();
+      });
+    });
+
+    // Boutons + et –
+    document.querySelectorAll('.plus').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = btn.dataset.id;
+        const input = document.getElementById('qty_' + id);
+        input.value = (parseInt(input.value) || 0) + 1;
+        recomputeTotal();
+      });
+    });
+    document.querySelectorAll('.minus').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = btn.dataset.id;
+        const input = document.getElementById('qty_' + id);
+        input.value = Math.max(0, (parseInt(input.value) || 0) - 1);
+        recomputeTotal();
+      });
+    });
+
+    // Favoris
+    document.querySelectorAll('.fav').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = btn.dataset.id;
+        if (favs.has(id)) {
+          favs.delete(id);
+        } else {
+          favs.add(id);
+        }
+        saveFavs(favs);
+        filter();
+      });
+    });
+
+    // Pavé numérique
+    const kp = document.getElementById('keypad');
+    const kpBtn = document.getElementById('keypadBtn');
+    let focused = null;
+    document.querySelectorAll('input[type=number]').forEach(function(i) {
+      i.addEventListener('focus', function() {
+        focused = i;
+      });
+      i.addEventListener('input', recomputeTotal);
+    });
+    kpBtn && kpBtn.addEventListener('click', function() {
+      kp.style.display = kp.style.display === 'none' ? 'block' : 'none';
+    });
+    kp && kp.querySelectorAll('button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        const k = b.dataset.k;
+        if (!focused) return;
+        if (k === 'OK') {
+          kp.style.display = 'none';
+          return;
+        }
+        if (k === '←') {
+          focused.value = (focused.value || '').toString().slice(0, -1);
+        } else {
+          focused.value = (focused.value || '') + k;
+        }
+        recomputeTotal();
+      });
+    });
+  </script>
+</body>
+</html>
