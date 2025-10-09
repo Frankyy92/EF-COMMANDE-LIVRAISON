@@ -1,4 +1,4 @@
-<div class="sidebar">
+<aside class="sidebar">
   <div class="sidebar-header">
     <% if (currentUser) { %>
       <img src="/public/img/ef-logo.png" alt="EF" class="sidebar-logo" />
@@ -6,7 +6,7 @@
     <% } else { %>
       <div class="sidebar-title">Orderflow</div>
     <% } %>
-  </div>
+  </aside>
   <% if (currentUser) { %>
     <ul class="nav-links">
       <% if (currentUser.role === 'admin') { %>
