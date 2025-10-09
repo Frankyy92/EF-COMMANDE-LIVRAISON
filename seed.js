@@ -1,4 +1,3 @@
-// Fichier seed.js — création des comptes et produits par défaut
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
