@@ -3,7 +3,7 @@ services:
     name: orderflow-pro
     env: node
     rootDir: .
-    plan: free
+    plan: starter   # <-- clé du passage en plan payant (Starter)
     buildCommand: npm install
     startCommand: npm start
     envVars:
