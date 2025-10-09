@@ -1,20 +1,16 @@
-// Fichier seed.js — création des comptes et produits par défaut
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-// S'assure que le dossier 'data' existe
 const dbDir = path.resolve('./data');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-// Ouvre ou crée la base SQLite dans le dossier data
 const db = new Database(path.join(dbDir, 'orderflow.sqlite'));
 console.log('🗄️ Initialisation de la base de données...');
 
-// Création des tables si elles n'existent pas
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +31,6 @@ db.prepare(`
   )
 `).run();
 
-// Comptes utilisateurs par défaut
 const users = [
   { name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin' },
   { name: 'Labo', email: 'lab@example.com', password: 'lab123', role: 'labo' },
@@ -51,7 +46,6 @@ for (const u of users) {
   insertUser.run(u.name, u.email, hash, u.role);
 }
 
-// Produits par défaut
 const products = [
   { name: 'Tarte citron', category: 'pâtisserie', unit: 'pièce', default_quantity: 10 },
   { name: 'Croissant', category: 'viennoiserie', unit: 'pièce', default_quantity: 50 },
