@@ -1,19 +1,20 @@
-import Database from 'better-sqlite3';
-import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
+// Fichier seed.js — création des comptes et produits par défaut
+const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
-// Création du dossier data/ si nécessaire
+// S'assure que le dossier 'data' existe
 const dbDir = path.resolve('./data');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-// Création / ouverture de la base SQLite
+// Ouvre ou crée la base SQLite dans le dossier data
 const db = new Database(path.join(dbDir, 'orderflow.sqlite'));
 console.log('🗄️ Initialisation de la base de données...');
 
-// --- Création des tables si elles n'existent pas ---
+// Création des tables si elles n'existent pas
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +35,7 @@ db.prepare(`
   )
 `).run();
 
-// --- Comptes utilisateurs par défaut ---
+// Comptes utilisateurs par défaut
 const users = [
   { name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin' },
   { name: 'Labo', email: 'lab@example.com', password: 'lab123', role: 'labo' },
@@ -44,13 +45,13 @@ const users = [
   { name: 'Boutique Boulogne', email: 'boulogne@example.com', password: 'boutique123', role: 'boutique' }
 ];
 
-const insertUser = db.prepare(`INSERT OR IGNORE INTO users (name, email, password, role) VALUES (?, ?, ?, ?)`);
+const insertUser = db.prepare('INSERT OR IGNORE INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
 for (const u of users) {
   const hash = bcrypt.hashSync(u.password, 10);
   insertUser.run(u.name, u.email, hash, u.role);
 }
 
-// --- Produits par défaut ---
+// Produits par défaut
 const products = [
   { name: 'Tarte citron', category: 'pâtisserie', unit: 'pièce', default_quantity: 10 },
   { name: 'Croissant', category: 'viennoiserie', unit: 'pièce', default_quantity: 50 },
@@ -58,7 +59,7 @@ const products = [
   { name: 'Entremet chocolat', category: 'pâtisserie', unit: 'pièce', default_quantity: 5 }
 ];
 
-const insertProduct = db.prepare(`INSERT OR IGNORE INTO products (name, category, unit, default_quantity) VALUES (?, ?, ?, ?)`);
+const insertProduct = db.prepare('INSERT OR IGNORE INTO products (name, category, unit, default_quantity) VALUES (?, ?, ?, ?)');
 for (const p of products) {
   insertProduct.run(p.name, p.category, p.unit, p.default_quantity);
 }
