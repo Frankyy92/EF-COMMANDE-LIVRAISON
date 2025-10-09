@@ -408,3 +408,67 @@ footer.sticky{
   header{padding:10px 14px}
   .btn{width:100%; justify-content:center}
 }
+/* ======== Patch responsive EF (crème + chocolat) ======== */
+:root{
+  --ef-bg: #f7f1e8;        /* crème */
+  --ef-primary: #e7d7c9;   /* beige */
+  --ef-brown: #5a3e2b;     /* chocolat */
+  --ef-brown-700:#4a3326;
+  --ef-border:#e8e2db;
+  --ef-ink:#1b1b1b;
+}
+
+html, body { background: var(--ef-bg); color: var(--ef-ink); }
+
+/* ----- Topbar & Burger ----- */
+.topbar{
+  position: sticky; top:0; z-index: 40;
+  height:56px; display:flex; align-items:center; gap:12px;
+  padding:0 12px; background:var(--ef-bg); border-bottom:1px solid var(--ef-border);
+}
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; }
+.top-logo{ height:28px; width:auto; }
+.top-title{ font-weight:600; letter-spacing:.2px; }
+
+.hamburger{
+  appearance:none; border:none; background:transparent; color:var(--ef-brown);
+  font-size:24px; line-height:1; padding:6px 10px; cursor:pointer; border-radius:8px;
+}
+
+/* ----- Champs & boutons tactiles ----- */
+input[type="text"], input[type="number"], input[type="password"], input[type="email"],
+select, textarea{
+  font-size:16px; padding:12px 14px; border-radius:8px;
+  border:1px solid var(--ef-border); width:100%; box-sizing:border-box;
+}
+button, .btn{ min-height:44px; padding:10px 16px; border-radius:10px; }
+
+/* Tables scrollables sur mobile */
+.table-responsive{ width:100%; overflow-x:auto; }
+.table-responsive table{ min-width:680px; border-collapse:collapse; }
+table th, table td{ padding:.6rem .8rem; border-bottom:1px solid var(--ef-border); }
+
+/* ----- Sidebar : desktop = comme avant ; mobile = tiroir ----- */
+.sidebar{ background:var(--ef-brown); color:#fff; }
+.sidebar a{ color:#fff; text-decoration:none; }
+.sidebar .nav-links li{ list-style:none; }
+
+/* Tiroir mobile/tablette */
+@media (max-width: 1024px){
+  .sidebar{
+    position: fixed; inset: 0 auto 0 0;
+    width: 72vw; max-width: 320px; min-width:260px;
+    transform: translateX(-100%); transition: transform .25s ease;
+    box-shadow: 2px 0 12px rgba(0,0,0,.15); z-index: 50;
+  }
+  body.nav-open .sidebar{ transform: translateX(0); }
+  /* Le contenu prend toute la largeur quand la sidebar est cachée */
+  main, .content, #content, .page, .container{ margin-left: 0 !important; }
+}
+
+/* Petit mobile */
+@media (max-width: 640px){
+  .topbar{ height:52px; }
+  .hamburger{ font-size:22px; }
+  table{ font-size:14px; }
+}
