@@ -1,16 +1,23 @@
+// Fichier seed.js — création des comptes et produits par défaut
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const dbDir = path.resolve('./data');
+// Récupère le chemin de la base : DB_PATH (ex: /var/data/orderflow.sqlite) ou ./orderflow.sqlite par défaut
+const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
+const dbDir = path.dirname(dbPath);
+
+// Crée le dossier de la base si nécessaire
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new Database(path.join(dbDir, 'orderflow.sqlite'));
-console.log('🗄️ Initialisation de la base de données...');
+// Ouvre ou crée la base SQLite
+const db = new Database(dbPath);
+console.log(`🗄️ Initialisation de la base de données : ${dbPath}`);
 
+// Création des tables si elles n'existent pas
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +38,7 @@ db.prepare(`
   )
 `).run();
 
+// Comptes utilisateurs par défaut
 const users = [
   { name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin' },
   { name: 'Labo', email: 'lab@example.com', password: 'lab123', role: 'labo' },
@@ -46,6 +54,7 @@ for (const u of users) {
   insertUser.run(u.name, u.email, hash, u.role);
 }
 
+// Produits par défaut
 const products = [
   { name: 'Tarte citron', category: 'pâtisserie', unit: 'pièce', default_quantity: 10 },
   { name: 'Croissant', category: 'viennoiserie', unit: 'pièce', default_quantity: 50 },
