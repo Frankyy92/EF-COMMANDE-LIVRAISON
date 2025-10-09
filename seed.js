@@ -3,7 +3,13 @@ const Database = require('better-sqlite3');
 // Utiliser bcryptjs pour rester compatible avec les dépendances du projet
 const bcrypt = require('bcryptjs');
 
-const db = new Database(process.env.DB_PATH || './orderflow.sqlite');
+import fs from 'fs';
+import path from 'path';
+const dbDir = path.resolve('./data');
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+const db = new Database(path.join(dbDir, 'orderflow.sqlite'));
 
 console.log('🔄 Initialisation de la base de données...');
 
