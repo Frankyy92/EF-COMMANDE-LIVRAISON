@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produits - Admin - Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+    <h1>Produits</h1>
+    <a href="/admin/products/new" class="button">Nouveau produit</a>
+    <table>
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Catégorie</th>
+          <th>Crus</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% products.forEach(function(p) { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td><%= p.category_name %></td>
+            <td><%= p.is_crude ? 'Oui' : 'Non' %></td>
+            <td>
+              <a href="/admin/products/<%= p.id %>/edit" class="button">Éditer</a>
+              <form action="/admin/products/<%= p.id %>/delete" method="post" style="display:inline-block" onsubmit="return confirm('Supprimer ce produit ?')">
+                <button type="submit" class="button">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
