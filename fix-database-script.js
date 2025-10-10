@@ -3,6 +3,9 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
+const { seedDefaults } = require('./scripts/seed-defaults');
+const seedData = require('./scripts/seed-data');
+
 // Chemin vers la base de données sur Render
 const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
 
@@ -107,6 +110,8 @@ console.log('✅ Structure de base de données créée avec succès');
 
 // Insérer les données initiales
 console.log('📝 Insertion des données initiales...');
+seedDefaults(db);
+console.log('✅ Données initiales en place');
 
 // Insérer les boutiques
 const boutiques = ['Saint-Germain-en-Laye', 'Suresnes', 'Rueil-Malmaison', 'Neuilly'];
@@ -207,9 +212,9 @@ console.log(`   - ${stats.users} utilisateurs`);
 
 console.log('\n✨ Base de données réparée avec succès !');
 console.log('\n🔑 Comptes de test :');
-console.log('   Admin : admin@example.com / admin123');
-console.log('   Labo : labo@example.com / labo123');
-console.log('   Boutique St-Germain : stgermain@example.com / boutique123');
-console.log('   Boutique Suresnes : suresnes@example.com / boutique123');
+seedData.users.forEach(user => {
+  const label = user.boutique ? `${user.boutique}` : user.role;
+  console.log(`   ${label} : ${user.email} / ${user.password}`);
+});
 
 db.close();

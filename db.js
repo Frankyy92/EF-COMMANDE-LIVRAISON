@@ -2,6 +2,8 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
+const { seedDefaults } = require('./scripts/seed-defaults');
+
 // Chemin de la base : DB_PATH (Render: /var/data/orderflow.sqlite) ou ./orderflow.sqlite en local
 const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
 
@@ -101,6 +103,16 @@ function init() {
   } catch (err) {
     console.error('Erreur lors de la vérification de users.boutique_id', err);
   }
+
+  seedDefaults(db);
+  console.log('🔑 Comptes par défaut disponibles :');
+  console.log('   - admin@example.com / admin123 (admin)');
+  console.log('   - labo@example.com / labo123 (labo)');
+  console.log('   - livreur@example.com / livreur123 (livreur)');
+  console.log('   - stgermain@example.com / boutique123 (boutique)');
+  console.log('   - suresnes@example.com / boutique123 (boutique)');
+  console.log('   - rueil@example.com / boutique123 (boutique)');
+  console.log('   - neuilly@example.com / boutique123 (boutique)');
   console.log('✅ Tables initialisées');
 }
 
