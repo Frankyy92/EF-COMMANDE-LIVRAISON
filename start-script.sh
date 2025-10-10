@@ -21,4 +21,4 @@ echo "✅ Base de données prête"
 echo "🌐 Démarrage du serveur sur le port $PORT..."
 
 # Démarrer l'application
-node app.js
+exec node app.js

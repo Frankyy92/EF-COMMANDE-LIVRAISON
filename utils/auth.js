@@ -1,12 +1,12 @@
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 /**
- * Génère un hash SHA-256 pour un mot de passe.
+ * Génère un hash sécurisé (bcrypt) pour un mot de passe.
  * @param {string} password
  * @returns {string}
  */
 function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
 /**
@@ -16,7 +16,8 @@ function hashPassword(password) {
  * @returns {boolean}
  */
 function verifyPassword(password, hashed) {
-  return hashPassword(password) === hashed;
+  if (!hashed) return false;
+  return bcrypt.compareSync(password, hashed);
 }
 
 module.exports = { hashPassword, verifyPassword };
