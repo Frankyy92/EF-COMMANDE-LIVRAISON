@@ -1,70 +1,81 @@
-// Fichier seed.js — création des comptes et produits par défaut
-const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
+// Script de peuplement initial de la base de données
+const { db, init } = require('./db');
+const { hashPassword } = require('./utils/auth');
 
-// Récupère le chemin de la base : DB_PATH (ex: /var/data/orderflow.sqlite) ou ./orderflow.sqlite par défaut
-const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
-const dbDir = path.dirname(dbPath);
+// Initialise le schéma (tables + contraintes)
+init();
 
-// Crée le dossier de la base si nécessaire
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+console.log('🗄️ Réinitialisation des données de démonstration...');
 
-// Ouvre ou crée la base SQLite
-const db = new Database(dbPath);
-console.log(`🗄️ Initialisation de la base de données : ${dbPath}`);
+db.exec(`
+  DELETE FROM order_items;
+  DELETE FROM orders;
+  DELETE FROM production_plans;
+  DELETE FROM sales_history;
+  DELETE FROM users;
+  DELETE FROM products;
+  DELETE FROM categories;
+  DELETE FROM boutiques;
+`);
 
-// Création des tables si elles n'existent pas
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT UNIQUE,
-    password TEXT,
-    role TEXT
-  )
-`).run();
-
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    category TEXT,
-    unit TEXT,
-    default_quantity INTEGER
-  )
-`).run();
-
-// Comptes utilisateurs par défaut
-const users = [
-  { name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin' },
-  { name: 'Labo', email: 'lab@example.com', password: 'lab123', role: 'labo' },
-  { name: 'Boutique Suresnes', email: 'suresnes@example.com', password: 'boutique123', role: 'boutique' },
-  { name: 'Boutique Rueil', email: 'rueil@example.com', password: 'boutique123', role: 'boutique' },
-  { name: 'Boutique St-Germain', email: 'stgermain@example.com', password: 'boutique123', role: 'boutique' },
-  { name: 'Boutique Boulogne', email: 'boulogne@example.com', password: 'boutique123', role: 'boutique' }
+// --- Boutiques ---
+const boutiquesData = [
+  'Boutique Suresnes',
+  'Boutique Rueil',
+  'Boutique St-Germain',
+  'Boutique Boulogne'
 ];
 
-const insertUser = db.prepare('INSERT OR IGNORE INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
-for (const u of users) {
-  const hash = bcrypt.hashSync(u.password, 10);
-  insertUser.run(u.name, u.email, hash, u.role);
+const boutiqueIds = new Map();
+const insertBoutique = db.prepare('INSERT INTO boutiques (name) VALUES (?)');
+for (const name of boutiquesData) {
+  const result = insertBoutique.run(name);
+  boutiqueIds.set(name, result.lastInsertRowid);
 }
 
-// Produits par défaut
-const products = [
-  { name: 'Tarte citron', category: 'pâtisserie', unit: 'pièce', default_quantity: 10 },
-  { name: 'Croissant', category: 'viennoiserie', unit: 'pièce', default_quantity: 50 },
-  { name: 'Pain au chocolat', category: 'viennoiserie', unit: 'pièce', default_quantity: 50 },
-  { name: 'Entremet chocolat', category: 'pâtisserie', unit: 'pièce', default_quantity: 5 }
+// --- Catégories ---
+const categoriesData = ['Pâtisserie', 'Viennoiserie', 'Boulangerie'];
+const categoryIds = new Map();
+const insertCategory = db.prepare('INSERT INTO categories (name) VALUES (?)');
+for (const name of categoriesData) {
+  const result = insertCategory.run(name);
+  categoryIds.set(name, result.lastInsertRowid);
+}
+
+// --- Produits ---
+const productsData = [
+  { name: 'Tarte citron', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'Entremet chocolat', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'Croissant', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'Pain au chocolat', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'Pâte à croissant', category: 'Boulangerie', is_crude: 1 }
 ];
 
-const insertProduct = db.prepare('INSERT OR IGNORE INTO products (name, category, unit, default_quantity) VALUES (?, ?, ?, ?)');
-for (const p of products) {
-  insertProduct.run(p.name, p.category, p.unit, p.default_quantity);
+const insertProduct = db.prepare(
+  'INSERT INTO products (name, category_id, is_crude) VALUES (?, ?, ?)' 
+);
+for (const product of productsData) {
+  const categoryId = categoryIds.get(product.category);
+  insertProduct.run(product.name, categoryId, product.is_crude ? 1 : 0);
 }
 
-console.log('✅ Données de démo insérées avec succès');
+// --- Utilisateurs ---
+const usersData = [
+  { email: 'admin@example.com', password: 'admin123', role: 'admin' },
+  { email: 'lab@example.com', password: 'lab123', role: 'labo' },
+  { email: 'livreur@example.com', password: 'livreur123', role: 'livreur' },
+  { email: 'suresnes@example.com', password: 'boutique123', role: 'boutique', boutique: 'Boutique Suresnes' },
+  { email: 'rueil@example.com', password: 'boutique123', role: 'boutique', boutique: 'Boutique Rueil' },
+  { email: 'stgermain@example.com', password: 'boutique123', role: 'boutique', boutique: 'Boutique St-Germain' },
+  { email: 'boulogne@example.com', password: 'boutique123', role: 'boutique', boutique: 'Boutique Boulogne' }
+];
+
+const insertUser = db.prepare(
+  'INSERT INTO users (email, password, role, boutique_id) VALUES (?, ?, ?, ?)' 
+);
+for (const user of usersData) {
+  const boutiqueId = user.boutique ? boutiqueIds.get(user.boutique) : null;
+  insertUser.run(user.email, hashPassword(user.password), user.role, boutiqueId);
+}
+
+console.log('✅ Données de démonstration insérées avec succès.');
