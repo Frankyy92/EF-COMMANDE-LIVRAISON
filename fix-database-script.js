@@ -164,11 +164,8 @@ products.forEach(p => {
   }
 });
 
-// Créer les utilisateurs avec hash simple (pour le développement)
-const crypto = require('crypto');
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+// Créer les utilisateurs avec un hash sécurisé
+const { hashPassword } = require('./utils/auth');
 
 // Insérer les utilisateurs
 const users = [
