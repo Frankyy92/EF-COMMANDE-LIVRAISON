@@ -113,6 +113,89 @@ console.log('📝 Insertion des données initiales...');
 seedDefaults(db);
 console.log('✅ Données initiales en place');
 
+// Insérer les boutiques
+const boutiques = ['Saint-Germain-en-Laye', 'Suresnes', 'Rueil-Malmaison', 'Neuilly'];
+const insertBoutique = db.prepare('INSERT INTO boutiques (name) VALUES (?)');
+boutiques.forEach(name => {
+  insertBoutique.run(name);
+});
+
+// Insérer les catégories
+const categories = [
+  'Viennoiserie',
+  'Pâtisserie', 
+  'Gâteau de voyage',
+  'Traiteur',
+  'Boulangerie/Économat',
+  'Macaron',
+  'Petit four sec',
+  'Cakes',
+  'Caisses',
+  'Autres'
+];
+const insertCategory = db.prepare('INSERT INTO categories (name) VALUES (?)');
+categories.forEach(name => {
+  insertCategory.run(name);
+});
+
+// Obtenir les IDs des catégories
+const catRows = db.prepare('SELECT * FROM categories').all();
+const catMap = {};
+catRows.forEach(c => {
+  catMap[c.name] = c.id;
+});
+
+// Insérer quelques produits de base
+const products = [
+  { name: 'CROISSANT', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'PAIN AU CHOCOLAT', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'CHAUSSON', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'PAIN AU RAISIN', category: 'Viennoiserie', is_crude: 0 },
+  { name: 'TARTE CITRON', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'ÉCLAIR CAFÉ', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'PARIS BREST', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'MILLE FEUILLE', category: 'Pâtisserie', is_crude: 0 },
+  { name: 'FINANCIER', category: 'Gâteau de voyage', is_crude: 0 },
+  { name: 'COOKIES', category: 'Gâteau de voyage', is_crude: 0 },
+  { name: 'BROWNIES', category: 'Gâteau de voyage', is_crude: 0 },
+  { name: 'QUICHE LORRAINE', category: 'Traiteur', is_crude: 0 },
+  { name: 'CROQUE MONSIEUR', category: 'Traiteur', is_crude: 0 }
+];
+
+const insertProduct = db.prepare('INSERT INTO products (name, category_id, is_crude) VALUES (?, ?, ?)');
+products.forEach(p => {
+  if (catMap[p.category]) {
+    insertProduct.run(p.name, catMap[p.category], p.is_crude);
+  }
+});
+
+// Créer les utilisateurs avec un hash sécurisé
+const { hashPassword } = require('./utils/auth');
+
+// Insérer les utilisateurs
+const users = [
+  { email: 'admin@example.com', password: 'admin123', role: 'admin', boutique: null },
+  { email: 'labo@example.com', password: 'labo123', role: 'labo', boutique: null },
+  { email: 'livreur@example.com', password: 'livreur123', role: 'livreur', boutique: null },
+  { email: 'stgermain@example.com', password: 'boutique123', role: 'boutique', boutique: 'Saint-Germain-en-Laye' },
+  { email: 'suresnes@example.com', password: 'boutique123', role: 'boutique', boutique: 'Suresnes' },
+  { email: 'rueil@example.com', password: 'boutique123', role: 'boutique', boutique: 'Rueil-Malmaison' },
+  { email: 'neuilly@example.com', password: 'boutique123', role: 'boutique', boutique: 'Neuilly' }
+];
+
+const insertUser = db.prepare('INSERT INTO users (email, password, role, boutique_id) VALUES (?, ?, ?, ?)');
+users.forEach(u => {
+  const hash = hashPassword(u.password);
+  let boutiqueId = null;
+  if (u.boutique) {
+    const row = db.prepare('SELECT id FROM boutiques WHERE name = ?').get(u.boutique);
+    boutiqueId = row ? row.id : null;
+  }
+  insertUser.run(u.email, hash, u.role, boutiqueId);
+});
+
+console.log('✅ Données initiales insérées avec succès');
+
 // Afficher les statistiques
 const stats = {
   boutiques: db.prepare('SELECT COUNT(*) as count FROM boutiques').get().count,
