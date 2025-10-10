@@ -1,22 +1,29 @@
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-/**
- * Génère un hash SHA-256 pour un mot de passe.
- * @param {string} password
- * @returns {string}
- */
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+const DEFAULT_BCRYPT_ROUNDS = 10;
+
+function resolveSaltRounds() {
+  const rounds = parseInt(process.env.BCRYPT_ROUNDS || `${DEFAULT_BCRYPT_ROUNDS}`, 10);
+  return Number.isNaN(rounds) || rounds < 4 ? DEFAULT_BCRYPT_ROUNDS : rounds;
 }
 
-/**
- * Vérifie qu'un mot de passe en clair correspond au hash stocké.
- * @param {string} password
- * @param {string} hashed
- * @returns {boolean}
- */
+function hashPassword(password) {
+  return bcrypt.hashSync(password, bcrypt.genSaltSync(resolveSaltRounds()));
+}
+
 function verifyPassword(password, hashed) {
-  return hashPassword(password) === hashed;
+  if (!hashed) {
+    return false;
+  }
+
+  if (hashed.startsWith('$2a$') || hashed.startsWith('$2b$') || hashed.startsWith('$2y$')) {
+    return bcrypt.compareSync(password, hashed);
+  }
+
+  const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
+  return legacyHash === hashed;
 }
 
 module.exports = { hashPassword, verifyPassword };
+

@@ -2,6 +2,7 @@
 const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
+const { hashPassword } = require('./utils/auth');
 
 // Chemin vers la base de données sur Render
 const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
@@ -32,13 +33,13 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL
   );
-  
+
   -- Table des catégories
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL
   );
-  
+
   -- Table des produits
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +48,7 @@ db.exec(`
     is_crude INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   );
-  
+
   -- Table des utilisateurs avec boutique_id
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +58,7 @@ db.exec(`
     boutique_id INTEGER,
     FOREIGN KEY (boutique_id) REFERENCES boutiques(id)
   );
-  
+
   -- Table des commandes
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +71,7 @@ db.exec(`
     created_at TEXT NOT NULL,
     FOREIGN KEY (boutique_id) REFERENCES boutiques(id)
   );
-  
+
   -- Table des lignes de commande
   CREATE TABLE IF NOT EXISTS order_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +82,7 @@ db.exec(`
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
   );
-  
+
   -- Table de l'historique des ventes
   CREATE TABLE IF NOT EXISTS sales_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +119,7 @@ boutiques.forEach(name => {
 // Insérer les catégories
 const categories = [
   'Viennoiserie',
-  'Pâtisserie', 
+  'Pâtisserie',
   'Gâteau de voyage',
   'Traiteur',
   'Boulangerie/Économat',
@@ -164,13 +165,7 @@ products.forEach(p => {
   }
 });
 
-// Créer les utilisateurs avec hash simple (pour le développement)
-const crypto = require('crypto');
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
-// Insérer les utilisateurs
+// Insérer les utilisateurs avec hash sécurisé
 const users = [
   { email: 'admin@example.com', password: 'admin123', role: 'admin', boutique: null },
   { email: 'labo@example.com', password: 'labo123', role: 'labo', boutique: null },
@@ -216,3 +211,4 @@ console.log('   Boutique St-Germain : stgermain@example.com / boutique123');
 console.log('   Boutique Suresnes : suresnes@example.com / boutique123');
 
 db.close();
+

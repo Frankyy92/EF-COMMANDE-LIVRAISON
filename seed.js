@@ -1,8 +1,8 @@
 // Fichier seed.js — création des comptes et produits par défaut
 const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const { hashPassword } = require('./utils/auth');
 
 // Récupère le chemin de la base : DB_PATH (ex: /var/data/orderflow.sqlite) ou ./orderflow.sqlite par défaut
 const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
@@ -50,7 +50,7 @@ const users = [
 
 const insertUser = db.prepare('INSERT OR IGNORE INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
 for (const u of users) {
-  const hash = bcrypt.hashSync(u.password, 10);
+  const hash = hashPassword(u.password);
   insertUser.run(u.name, u.email, hash, u.role);
 }
 
@@ -68,3 +68,4 @@ for (const p of products) {
 }
 
 console.log('✅ Données de démo insérées avec succès');
+

@@ -1,0 +1,4 @@
+node_modules/
+orderflow.sqlite
+*.log
+
