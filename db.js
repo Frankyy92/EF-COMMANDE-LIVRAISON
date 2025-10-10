@@ -89,6 +89,18 @@ function init() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
   `);
+
+  // S'assurer que la colonne boutique_id existe (anciennes bases Render)
+  try {
+    const userColumns = db.prepare('PRAGMA table_info(users)').all();
+    const hasBoutiqueId = userColumns.some(col => col.name === 'boutique_id');
+    if (!hasBoutiqueId) {
+      db.exec('ALTER TABLE users ADD COLUMN boutique_id INTEGER REFERENCES boutiques(id)');
+      console.log('ℹ️  Ajout de la colonne manquante users.boutique_id');
+    }
+  } catch (err) {
+    console.error('Erreur lors de la vérification de users.boutique_id', err);
+  }
   console.log('✅ Tables initialisées');
 }
 
