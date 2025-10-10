@@ -14,7 +14,7 @@ mkdir -p /var/data
 # Vérifier si la base existe, sinon la créer
 if [ ! -f "$DB_PATH" ]; then
     echo "📦 Initialisation de la base de données..."
-    node fix-database.js
+    node fix-database-script.js
 fi
 
 echo "✅ Base de données prête"
