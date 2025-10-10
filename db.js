@@ -38,7 +38,7 @@ function init() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       category_id INTEGER NOT NULL,
-      is_crude INTEGER NOT NULL DEFAULT 0,
+      is_crude BOOLEAN,
       FOREIGN KEY (category_id) REFERENCES categories(id)
     );
     
