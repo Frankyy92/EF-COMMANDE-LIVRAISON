@@ -10,7 +10,7 @@ console.log(`🔧 Réparation de la base de données : ${dbPath}`);
 
 // Supprimer l'ancienne base si elle existe
 if (fs.existsSync(dbPath)) {
-  console.log('⚠️ Suppression de l'ancienne base de données...');
+  console.log("⚠️ Suppression de l'ancienne base de données...");
   fs.unlinkSync(dbPath);
 }
 
