@@ -2,7 +2,7 @@ const express = require('express');
 const { db } = require('../db');
 const router = express.Router();
 
-// Fonction utilitaire pour obtenir YYYY-MM-DD au format ISO local
+// Utilitaire pour formater une date en YYYY-MM-DD
 function formatDateISO(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -10,12 +10,10 @@ function formatDateISO(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Calcule les suggestions de quantité pour une boutique et une date donnée
+// Calcul des suggestions de quantités pour une boutique et une date données
 function calculateSuggestions(boutiqueId, deliveryDate) {
-  // Determine the weekday (0 dimanche ... 6 samedi) de la date demandée
   const date = new Date(deliveryDate);
-  const weekday = date.getDay().toString();
-  // Récupérer la moyenne des quantités finales ou commandes verrouillées pour les 4 dernières occurrences de ce jour
+  const weekday = date.getDay().toString();  // 0 = dimanche, ... 6 = samedi
   const stmt = db.prepare(
     `SELECT oi.product_id, AVG(COALESCE(oi.final_quantity, oi.quantity)) AS avg_qty
      FROM order_items oi
@@ -27,33 +25,32 @@ function calculateSuggestions(boutiqueId, deliveryDate) {
   );
   const rows = stmt.all(boutiqueId, weekday);
   const suggestions = {};
-  rows.forEach((row) => {
+  rows.forEach(row => {
     suggestions[row.product_id] = Math.round(row.avg_qty);
   });
   return suggestions;
 }
 
-// Middleware pour vérifier si l'édition est autorisée (avant cut-off)
+// Vérifie si l’édition est autorisée (avant l’heure de cut-off 21:00)
 function canEditOrder() {
   const now = new Date();
   const hour = now.getHours();
-  // Cut‑off à 21 h. Si horaire passé, interdit l'édition
-  return hour < 21;
+  return hour < 21;  // true si avant 21h
 }
 
+// Redirection de /boutique vers la commande de demain
 router.get('/', (req, res) => {
-  // Rediriger sur la commande pour le lendemain
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const iso = formatDateISO(tomorrow);
   res.redirect(`/boutique/order/${iso}`);
 });
 
-// Afficher / éditer la commande pour une date donnée
+// Afficher/éditer la commande d’une date donnée
 router.get('/order/:date', (req, res) => {
   const deliveryDate = req.params.date;
-  const boutiqueId = req.session.user.boutique_id;
-  // Vérifier l'existence d'une commande
+  const boutiqueId = req.session.user ? req.session.user.boutique_id : 1;  // Utilise la boutique 1 par défaut
+  // Récupérer la commande existante (si elle existe) pour cette boutique et date
   const existingOrder = db
     .prepare('SELECT * FROM orders WHERE boutique_id = ? AND delivery_date = ?')
     .get(boutiqueId, deliveryDate);
@@ -64,21 +61,21 @@ router.get('/order/:date', (req, res) => {
     const rows = db
       .prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?')
       .all(existingOrder.id);
-    rows.forEach((row) => {
+    rows.forEach(row => {
       orderItems[row.product_id] = row.quantity;
     });
   }
-  // Récupérer les produits
+  // Récupérer les produits par catégorie
   const categories = db.prepare('SELECT * FROM categories ORDER BY name').all();
   const productsByCat = {};
-  categories.forEach((cat) => {
-    productsByCat[cat.id] = [];
-  });
+  categories.forEach(cat => { productsByCat[cat.id] = []; });
   const products = db.prepare('SELECT * FROM products ORDER BY name').all();
-  products.forEach((p) => {
-    if (productsByCat[p.category_id]) productsByCat[p.category_id].push(p);
+  products.forEach(p => {
+    if (productsByCat[p.category_id]) {
+      productsByCat[p.category_id].push(p);
+    }
   });
-  // Calculer suggestions
+  // Calculer les suggestions de quantités
   const suggestions = calculateSuggestions(boutiqueId, deliveryDate);
   const editable = !locked && canEditOrder();
   res.render('boutique/order_form', {
@@ -92,17 +89,17 @@ router.get('/order/:date', (req, res) => {
   });
 });
 
-// Enregistrer la commande
+// Enregistrer la commande pour une date donnée
 router.post('/order/:date', (req, res) => {
   const deliveryDate = req.params.date;
-  const boutiqueId = req.session.user.boutique_id;
+  const boutiqueId = req.session.user ? req.session.user.boutique_id : 1;
   if (!canEditOrder()) {
     return res.status(403).send('Le délai de commande est dépassé (cut‑off 21:00)');
   }
   let order = db
     .prepare('SELECT * FROM orders WHERE boutique_id = ? AND delivery_date = ?')
     .get(boutiqueId, deliveryDate);
-  // Créer la commande si inexistante
+  // Créer la commande si elle n'existe pas encore
   if (!order) {
     const createdAt = new Date().toISOString();
     const info = db
@@ -113,9 +110,9 @@ router.post('/order/:date', (req, res) => {
   if (order.locked) {
     return res.status(403).send('Commande verrouillée. Impossible de modifier.');
   }
-  // Supprimer les éléments existants pour cette commande
+  // Supprimer les anciens items de commande (on recrée tous les items)
   db.prepare('DELETE FROM order_items WHERE order_id = ?').run(order.id);
-  // Parcourir les champs du formulaire
+  // Parcourir les champs du formulaire pour insérer les nouveaux items
   const items = [];
   for (const key in req.body) {
     if (key.startsWith('qty_')) {
@@ -127,11 +124,9 @@ router.post('/order/:date', (req, res) => {
       }
     }
   }
-  const insertItem = db.prepare(
-    'INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)'
-  );
+  const insertItem = db.prepare('INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)');
   const insertMany = db.transaction((items) => {
-    items.forEach((item) => {
+    items.forEach(item => {
       insertItem.run(order.id, item.productId, item.qty);
     });
   });
@@ -141,21 +136,19 @@ router.post('/order/:date', (req, res) => {
 
 /**
  * Afficher la page de réception pour une date donnée.
- * Permet à la boutique de visualiser la commande livrée et de confirmer la réception.
+ * Permet de visualiser la commande livrée et de confirmer la réception.
  */
 router.get('/reception/:date', (req, res) => {
   const deliveryDate = req.params.date;
-  const boutiqueId = req.session.user.boutique_id;
-  // Récupérer la commande verrouillée et livrée
+  const boutiqueId = req.session.user ? req.session.user.boutique_id : 1;
+  // Récupérer la commande verrouillée (finalisée) pour cette date
   const order = db
-    .prepare(
-      'SELECT * FROM orders WHERE boutique_id = ? AND delivery_date = ? AND locked = 1'
-    )
+    .prepare('SELECT * FROM orders WHERE boutique_id = ? AND delivery_date = ? AND locked = 1')
     .get(boutiqueId, deliveryDate);
   if (!order) {
     return res.render('boutique/reception', { deliveryDate, order: null });
   }
-  // Récupérer les items avec les quantités finales
+  // Récupérer les items avec quantités finales (final_quantity si présente, sinon quantity)
   const items = db
     .prepare(
       `SELECT p.name, oi.quantity, COALESCE(oi.final_quantity, oi.quantity) AS final_quantity
@@ -167,24 +160,19 @@ router.get('/reception/:date', (req, res) => {
   res.render('boutique/reception', { deliveryDate, order, items });
 });
 
-/**
- * Confirmer la réception d'une commande par la boutique.
- */
+// Confirmer la réception d’une commande (marquer comme reçue)
 router.post('/reception/:id', (req, res) => {
   const id = req.params.id;
-  // Marquer la commande comme reçue
   db.prepare('UPDATE orders SET received = 1 WHERE id = ?').run(id);
-  // Rediriger vers la liste de réception du jour
   const backDate = req.body.date;
   res.redirect(`/boutique/reception/${backDate}`);
 });
 
 /**
- * Afficher l'historique des commandes pour la boutique connectée.
+ * Afficher l'historique des commandes de la boutique (toutes dates).
  */
 router.get('/historique', (req, res) => {
-  const boutiqueId = req.session.user.boutique_id;
-  // Récupérer toutes les commandes de cette boutique triées par date décroissante
+  const boutiqueId = req.session.user ? req.session.user.boutique_id : 1;
   const orders = db
     .prepare(
       `SELECT o.id, o.delivery_date, o.locked, o.delivered, o.received,
