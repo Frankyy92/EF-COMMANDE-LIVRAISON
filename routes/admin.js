@@ -18,7 +18,69 @@ router.get('/categories', (req, res) => {
 router.get('/categories/new', (req, res) => {
   res.render('admin/category_form', { category: null, error: null });
 });
+// --- CATEGORIES CRUD ---
+// Si tu as déjà importé express plus haut, ne le refais pas.
+// Ajoute ces imports si tu n'as pas déjà une connexion DB dans ce fichier :
+const path = require('path');
+const Database = require('better-sqlite3');
+const DB_PATH = process.env.DB_PATH || path.join('/var/data', 'orderflow.sqlite');
+const db = new Database(DB_PATH);
 
+// Table categories si elle n'existe pas
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    slug TEXT UNIQUE NOT NULL
+  )
+`).run();
+
+// Petit helper pour fabriquer un slug propre
+function slugify(s) {
+  return String(s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+
+// Liste des catégories  =>  /admin/categories
+router.get('/categories', (req, res) => {
+  const cats = db.prepare(`SELECT * FROM categories ORDER BY name ASC`).all();
+  res.render('admin/categories', { categories: cats, title: 'Catégories' });
+});
+
+// Ajouter une catégorie  =>  POST /admin/categories/add
+router.post('/categories/add', (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.redirect('/admin/categories');
+  const slug = slugify(name);
+  try {
+    db.prepare(`INSERT OR IGNORE INTO categories (name, slug) VALUES (?, ?)`).run(name, slug);
+  } catch (e) {}
+  res.redirect('/admin/categories');
+});
+
+// Modifier une catégorie  =>  POST /admin/categories/edit/:id
+router.post('/categories/edit/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const name = (req.body.name || '').trim();
+  if (!id || !name) return res.redirect('/admin/categories');
+  const slug = slugify(name);
+  db.prepare(`UPDATE categories SET name=?, slug=? WHERE id=?`).run(name, slug, id);
+  res.redirect('/admin/categories');
+});
+
+// Supprimer une catégorie  =>  POST /admin/categories/delete/:id
+router.post('/categories/delete/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/admin/categories');
+  db.prepare(`DELETE FROM categories WHERE id=?`).run(id);
+
+  // Optionnel : nettoyer la colonne category des produits
+  db.prepare(`UPDATE products SET category='' WHERE category NOT IN (SELECT slug FROM categories)`).run();
+
+  res.redirect('/admin/categories');
+});
+// --- FIN CATEGORIES CRUD ---
 router.post('/categories/new', (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) {
