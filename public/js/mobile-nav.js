@@ -1,21 +1,22 @@
 (function () {
-  const btn = document.getElementById('burgerBtn');
-  const nav = document.getElementById('sideNav');
-  if (!btn || !nav) return;
-
-  function toggle() {
-    const open = nav.classList.toggle('sidebar--open');
-    btn.setAttribute('aria-expanded', String(open));
-    nav.setAttribute('aria-hidden', String(!open));
-    document.body.classList.toggle('no-scroll', open);
+  function ready(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn);
+    } else {
+      fn();
+    }
   }
 
-  btn.addEventListener('click', toggle);
+  ready(function () {
+    var btn = document.getElementById('burgerBtn');
+    var side = document.getElementById('sideNav');
+    if (!btn || !side) return;
 
-  // Fermer au clic en dehors
-  document.addEventListener('click', (e) => {
-    if (!nav.classList.contains('sidebar--open')) return;
-    const inside = nav.contains(e.target) || btn.contains(e.target);
-    if (!inside) toggle();
+    btn.addEventListener('click', function () {
+      var open = side.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(open));
+      // verrouille le scroll quand le menu est ouvert sur mobile
+      document.body.classList.toggle('no-scroll', open);
+    });
   });
 })();
