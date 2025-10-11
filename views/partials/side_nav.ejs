@@ -1,39 +1,28 @@
-<div class="sidebar">
+<nav id="sideNav" class="sidebar" aria-hidden="true">
   <div class="sidebar-header">
     <img src="/public/img/ef-logo.png" alt="EF" class="sidebar-logo" />
     <div class="sidebar-title">Orderflow</div>
-    <button id="toggleSidebar" class="sidebar-toggle" type="button">☰</button>
   </div>
+
   <ul class="nav-links">
     <!-- Liens Administration -->
     <li><a href="/admin/products">Produits</a></li>
     <li><a href="/admin/categories">Catégories</a></li>
     <li><a href="/admin/boutiques">Boutiques</a></li>
     <li><a href="/admin/users">Utilisateurs</a></li>
+
     <!-- Liens Labo -->
     <li><a href="/labo">Consolidation</a></li>
     <li><a href="/labo/recap">Récapitulatif</a></li>
     <li><a href="/labo/historique">Historique</a></li>
+
     <!-- Liens Boutique -->
     <li><a href="/boutique">Nouvelle commande</a></li>
     <li><a href="/boutique/historique">Commandes</a></li>
     <li><a href="/boutique/reception/<%= new Date().toISOString().split('T')[0] %>">Réception</a></li>
+
     <!-- Liens Livreur -->
     <li><a href="/livreur">Livraisons</a></li>
   </ul>
-</div>
-<script>
-  // Script de toggle du menu latéral (inchangé)
-  document.addEventListener('DOMContentLoaded', function () {
-    var toggleBtn = document.getElementById('toggleSidebar');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        var sidebar = document.querySelector('.sidebar');
-        if (sidebar) {
-          sidebar.classList.toggle('collapsed');
-        }
-      });
-    }
-  });
-</script>
+</nav>
+
