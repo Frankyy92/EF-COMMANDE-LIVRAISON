@@ -1,28 +1,24 @@
-<nav id="sideNav" class="sidebar" aria-hidden="true">
+<nav id="sideNav" class="sidebar">
   <div class="sidebar-header">
     <img src="/public/img/ef-logo.png" alt="EF" class="sidebar-logo" />
     <div class="sidebar-title">Orderflow</div>
   </div>
 
   <ul class="nav-links">
-    <!-- Liens Administration -->
+    <!-- Admin -->
     <li><a href="/admin/products">Produits</a></li>
     <li><a href="/admin/categories">Catégories</a></li>
     <li><a href="/admin/boutiques">Boutiques</a></li>
     <li><a href="/admin/users">Utilisateurs</a></li>
-
-    <!-- Liens Labo -->
+    <!-- Labo -->
     <li><a href="/labo">Consolidation</a></li>
     <li><a href="/labo/recap">Récapitulatif</a></li>
     <li><a href="/labo/historique">Historique</a></li>
-
-    <!-- Liens Boutique -->
+    <!-- Boutique -->
     <li><a href="/boutique">Nouvelle commande</a></li>
     <li><a href="/boutique/historique">Commandes</a></li>
     <li><a href="/boutique/reception/<%= new Date().toISOString().split('T')[0] %>">Réception</a></li>
-
-    <!-- Liens Livreur -->
+    <!-- Livreur -->
     <li><a href="/livreur">Livraisons</a></li>
   </ul>
 </nav>
-
