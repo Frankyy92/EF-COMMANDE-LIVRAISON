@@ -472,3 +472,22 @@ table th, table td{ padding:.6rem .8rem; border-bottom:1px solid var(--ef-border
   .hamburger{ font-size:22px; }
   table{ font-size:14px; }
 }
+.burger-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.burger-text {
+  font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+  .burger-btn {
+    display: none; /* On cache le bouton burger en version desktop */
+  }
+}
