@@ -491,3 +491,17 @@ table th, table td{ padding:.6rem .8rem; border-bottom:1px solid var(--ef-border
     display: none; /* On cache le bouton burger en version desktop */
   }
 }
+.sidebar {
+  transition: transform 0.3s ease-in-out;
+  transform: translateX(-100%); /* caché par défaut */
+}
+
+.sidebar.open {
+  transform: translateX(0); /* visible quand on clique */
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    transform: translateX(0); /* toujours visible sur grand écran */
+  }
+}
