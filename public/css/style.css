@@ -505,3 +505,70 @@ table th, table td{ padding:.6rem .8rem; border-bottom:1px solid var(--ef-border
     transform: translateX(0); /* toujours visible sur grand écran */
   }
 }
+/* Couleurs thème */
+:root{
+  --choco:#7a4a2b;
+  --cream:#f5efe7;
+}
+
+/* Top bar */
+.top-bar{
+  background: #f1e7db;
+  position: sticky; top:0; z-index: 50;
+}
+.top-bar-content{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 16px;
+}
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; }
+.brand-badge{ background: var(--cream); color:#5a3a26; border-radius:8px; padding:6px 8px; font-weight:700; }
+.brand-text{ font-weight:800; color:#512d16; text-decoration:underline; }
+
+/* Bouton burger */
+.btn-burger{
+  display:flex; align-items:center; gap:8px;
+  background: var(--choco);
+  color: var(--cream);
+  border:0; border-radius:10px; padding:8px 12px;
+  font-weight:700;
+}
+.btn-burger:active{ transform: scale(0.98); }
+
+/* Sidebar (menu) */
+.sidebar{
+  position: fixed; inset:0 auto 0 0;  /* gauche plein height */
+  width: 280px; max-width: 85vw;
+  background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,.08);
+  transform: translateX(-100%);
+  transition: transform .25s ease;
+  z-index: 60; overflow-y:auto;
+}
+.sidebar.open{ transform: translateX(0); }
+
+.no-scroll{ overflow:hidden; }
+
+.sidebar-header{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #eee; }
+.sidebar-logo{ width:28px; height:28px; object-fit:contain; }
+.sidebar-title{ font-weight:800; color:#3a2b22; }
+
+.nav-links{ list-style:none; margin:0; padding:10px; }
+.nav-links li a{
+  display:block; padding:10px 12px; border-radius:8px;
+  color:#3b2b22; text-decoration:none;
+}
+.nav-links li a:hover{ background:#f6efe7; }
+
+/* Tags catégories en chocolat + pleine largeur */
+.tags-wrap{
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.tag{
+  background: var(--choco);
+  color: var(--cream);
+  border-radius:22px; padding:8px 14px; font-weight:600;
+}
+
+/* Optionnel: faire que la zone filtres occupe toute la largeur */
+.filters-block{
+  width: 100%;
+}
