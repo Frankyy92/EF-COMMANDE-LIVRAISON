@@ -24,3 +24,13 @@
 </script>
 </body>
 </html>
+<script>
+  const burgerBtn = document.getElementById("burger-btn");
+  const sidebar = document.querySelector(".sidebar");
+
+  if (burgerBtn && sidebar) {
+    burgerBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+    });
+  }
+</script>
