@@ -17,11 +17,6 @@ app.use(express.urlencoded({ extended: false }));
 // Fichiers statiques (CSS, images...)
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
-// Importation des routes
-const adminRoutes = require('./routes/admin');
-const laboRoutes = require('./routes/labo');
-const boutiqueRoutes = require('./routes/boutique');
-const livreurRoutes = require('./routes/livreur');
 
 // Routes SANS authentification
 app.use('/admin', adminRoutes);
