@@ -65,3 +65,21 @@ docker compose up --build
 
 ## 📄 Licence
 MIT
+
+
+## Déploiement Render (le plus simple)
+
+**Sans Docker** (recommandé) :
+- Build Command : `npm ci`
+- Start Command : `npm start`
+- Variables d'environnement :
+  - `SESSION_SECRET` = une longue chaîne aléatoire
+  - `SIMPLE_LOGIN` = `true` pour autoriser la connexion par email seul
+  - `ALLOWED_USERS` = `labo@example.com,boutique@example.com,admin@example.com`
+  - `DB_PATH` = `/opt/render/project/src/data/app.db`
+  - `TZ` = `Europe/Paris`
+
+**Disque persistant** :
+- Ajoute un Persistent Disk et monte-le sur `/opt/render/project/src/data`
+- Les données SQLite seront conservées entre déploiements.
+

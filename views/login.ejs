@@ -13,8 +13,10 @@
     <form method="post" action="/login">
       <label>Email</label>
       <input name="email" type="email" required/>
+      <% if (!simpleLogin) { %>
       <label>Mot de passe</label>
-      <input name="password" type="password" required/>
+      <input name="password" type="password"/>
+      <% } %>
       <button type="submit">Entrer</button>
     </form>
   </div>
