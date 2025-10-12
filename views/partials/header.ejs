@@ -1,11 +1,14 @@
 <header class="top-bar">
   <div class="top-bar-content">
-    <div class="top-bar-logo">
-      <img src="/public/img/ef-logo.png" alt="EF" class="top-logo" />
+    <a href="/" class="top-brand">
+      <span class="brand-badge">EF</span>
       <span class="top-title">Orderflow</span>
-    </div>
-    <% if (!currentUser) { %>
-      <a href="/login" class="top-link">Connexion</a>
-    <% } %>
+    </a>
+
+    <!-- Bouton menu burger -->
+    <button id="burgerBtn" class="btn-burger" type="button" aria-controls="sideNav" aria-expanded="false">
+      <span class="burger-icon" aria-hidden="true">☰</span>
+      <span class="burger-label">Menu</span>
+    </button>
   </div>
 </header>
