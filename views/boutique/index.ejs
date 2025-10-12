@@ -1,0 +1,50 @@
+<div class="card">
+  <h2>Nouvelle commande</h2>
+  <form method="post" action="/boutique/order">
+    <label>Client / Boutique</label>
+    <input name="client" required placeholder="Nom du client / boutique">
+    <div style="margin-top:16px;"></div>
+    <h3>Produits</h3>
+    <table>
+      <thead><tr><th>Produit</th><th>Prix (€)</th><th>Quantité</th></tr></thead>
+      <tbody>
+        <% products.forEach(p => { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td><%= p.price.toFixed(2) %></td>
+            <td><input type="number" min="0" name="qty_<%= p.id %>" value="0"></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;"></div>
+    <button class="btn primary" type="submit">Passer la commande</button>
+  </form>
+</div>
+<div class="card">
+  <h3>Mes commandes récentes</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Client</th><th>Articles</th><th>Statut</th><th>Créée</th></tr></thead>
+    <tbody>
+      <% orders.forEach(o => { %>
+        <tr>
+          <td><%= o.id %></td>
+          <td><%= o.client %></td>
+          <td>
+            <% o.items.forEach(it => { %>
+              <div><%= productsMap[it.productId].name %> × <%= it.qty %></div>
+            <% }) %>
+          </td>
+          <td>
+            <% if(o.status === 'non-traite'){ %>
+              <span class="status pending">Non traité</span>
+            <% } else { %>
+              <span class="status done">Validé</span>
+            <% } %>
+          </td>
+          <td><%= new Date(o.createdAt).toLocaleString() %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
