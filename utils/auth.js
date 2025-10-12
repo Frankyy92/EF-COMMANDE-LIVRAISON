@@ -1,22 +1,11 @@
-const crypto = require('crypto');
+// utils/auth.js
+const bcrypt = require('bcryptjs');
 
-/**
- * Génère un hash SHA-256 pour un mot de passe.
- * @param {string} password
- * @returns {string}
- */
 function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
-
-/**
- * Vérifie qu'un mot de passe en clair correspond au hash stocké.
- * @param {string} password
- * @param {string} hashed
- * @returns {boolean}
- */
-function verifyPassword(password, hashed) {
-  return hashPassword(password) === hashed;
+function verifyPassword(password, hash) {
+  return bcrypt.compareSync(password, hash);
 }
 
 module.exports = { hashPassword, verifyPassword };
