@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boutique – Passer commande</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="nav">
+    <h2>Boutique</h2>
+    <a href="#" id="navOrder">Nouvelle commande</a>
+    <a href="#" id="navHistory">Historique</a>
+    <a href="#" onclick="logout()" class="logout">Déconnexion</a>
+  </div>
+  <div class="main">
+    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div id="content"></div>
+  </div>
+  <script src="js/common.js"></script>
+  <script>
+    (function() {
+      const user = getUser();
+      if (!user || user.role !== 'boutique') {
+        window.location.href = 'index.html';
+        return;
+      }
+      const content = document.getElementById('content');
+      document.getElementById('navOrder').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadOrderPage();
+      });
+      document.getElementById('navHistory').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadHistory();
+      });
+      async function loadOrderPage() {
+        try {
+          const categories = await apiRequest('/api/categories');
+          // fetch all products grouped by category
+          const productsByCat = {};
+          for (const cat of categories) {
+            const prods = await apiRequest(`/api/products?category_id=${cat.id}`);
+            productsByCat[cat.name] = prods;
+          }
+          // Build HTML
+          let html = '<h1>Nouvelle commande</h1>';
+          html += '<div class="search-bar"><input type="text" id="searchInput" placeholder="Rechercher un produit..."></div>';
+          html += '<div class="tabs" id="tabs">';
+          categories.forEach((cat, idx) => {
+            html += `<div class="tab${idx === 0 ? ' active' : ''}" data-cat="${cat.name}">${cat.name}</div>`;
+          });
+          html += '</div>';
+          html += '<div class="tab-content" id="tabContent"></div>';
+          // Date picker and submit button
+          html += '<div style="margin-top:20px;">';
+          html += '<label for="orderDate">Date de livraison : </label>';
+          html += `<input type="date" id="orderDate" value="${getTomorrow()}">`;
+          html += '<button id="submitOrder" style="margin-left:15px;">Valider la commande</button>';
+          html += '</div>';
+          content.innerHTML = html;
+          // Variables to store quantities
+          const quantities = {};
+          // Render products for a given category
+          function renderCategory(catName) {
+            const list = productsByCat[catName] || [];
+            let table = '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+            list.forEach(p => {
+              const key = p.id;
+              const val = quantities[key] || '';
+              table += `<tr><td>${p.name}</td><td><input type="number" min="0" data-id="${p.id}" value="${val}" class="qtyInput"></td></tr>`;
+            });
+            table += '</tbody></table>';
+            document.getElementById('tabContent').innerHTML = table;
+            // attach listeners
+            document.querySelectorAll('.qtyInput').forEach(input => {
+              input.addEventListener('input', () => {
+                const id = parseInt(input.getAttribute('data-id'));
+                const val = parseInt(input.value) || 0;
+                if (val > 0) {
+                  quantities[id] = val;
+                } else {
+                  delete quantities[id];
+                }
+              });
+            });
+          }
+          // initial render
+          renderCategory(categories[0].name);
+          // Tab switching
+          document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+              document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+              tab.classList.add('active');
+              renderCategory(tab.getAttribute('data-cat'));
+              // reset search input
+              document.getElementById('searchInput').value = '';
+            });
+          });
+          // Search filtering
+          document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const currentCat = document.querySelector('.tab.active').getAttribute('data-cat');
+            const list = productsByCat[currentCat] || [];
+            let table = '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+            list.filter(p => p.name.toLowerCase().includes(term)).forEach(p => {
+              const key = p.id;
+              const val = quantities[key] || '';
+              table += `<tr><td>${p.name}</td><td><input type="number" min="0" data-id="${p.id}" value="${val}" class="qtyInput"></td></tr>`;
+            });
+            table += '</tbody></table>';
+            document.getElementById('tabContent').innerHTML = table;
+            document.querySelectorAll('.qtyInput').forEach(input => {
+              input.addEventListener('input', () => {
+                const id = parseInt(input.getAttribute('data-id'));
+                const val = parseInt(input.value) || 0;
+                if (val > 0) {
+                  quantities[id] = val;
+                } else {
+                  delete quantities[id];
+                }
+              });
+            });
+          });
+          // Submit order
+          document.getElementById('submitOrder').addEventListener('click', async () => {
+            const date = document.getElementById('orderDate').value;
+            if (!date) {
+              alert('Veuillez choisir une date');
+              return;
+            }
+            const items = Object.entries(quantities).map(([product_id, quantity]) => ({ product_id: parseInt(product_id), quantity }));
+            if (items.length === 0) {
+              alert('Veuillez saisir au moins une quantité');
+              return;
+            }
+            try {
+              await apiRequest('/api/orders', 'POST', { date, items });
+              alert('Commande enregistrée');
+              // reset quantities and reload page
+              loadOrderPage();
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+        } catch (err) {
+          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+        }
+      }
+
+      async function loadHistory() {
+        try {
+          const orders = await apiRequest('/api/orders');
+          let html = '<h1>Historique des commandes</h1>';
+          if (orders.length === 0) {
+            html += '<p>Aucune commande enregistrée.</p>';
+          } else {
+            html += '<table><thead><tr><th>Date</th><th>Statut</th><th>Détails</th></tr></thead><tbody>';
+            orders.forEach(o => {
+              html += `<tr><td>${o.date}</td><td>${o.status}</td><td><button data-id="${o.id}" class="viewOrder">Voir</button></td></tr>`;
+            });
+            html += '</tbody></table>';
+            html += '<div id="orderDetails"></div>';
+          }
+          content.innerHTML = html;
+          document.querySelectorAll('.viewOrder').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const id = btn.getAttribute('data-id');
+              // fetch specific order details via GET /api/orders?date & id not accessible; fetch list and filter
+              const order = orders.find(o => o.id == id);
+              let detailHtml = `<h3>Commande du ${order.date}</h3>`;
+              detailHtml += `<p>Statut: ${order.status}</p>`;
+              detailHtml += '<ul>';
+              order.items.forEach(item => {
+                detailHtml += `<li>Produit #${item.product_id} — quantité: ${item.quantity}</li>`;
+              });
+              detailHtml += '</ul>';
+              document.getElementById('orderDetails').innerHTML = detailHtml;
+            });
+          });
+        } catch (err) {
+          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+        }
+      }
+      // Default view
+      loadOrderPage();
+    })();
+  </script>
+</body>
+</html>

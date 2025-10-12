@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Livreur – Plan de livraison</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="nav">
+    <h2>Livreur</h2>
+    <a href="#" id="navDelivery">Plan de livraison</a>
+    <a href="#" onclick="logout()" class="logout">Déconnexion</a>
+  </div>
+  <div class="main">
+    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div id="content"></div>
+  </div>
+  <script src="js/common.js"></script>
+  <script>
+    (function() {
+      const user = getUser();
+      if (!user || (user.role !== 'livreur' && user.role !== 'admin' && user.role !== 'labo')) {
+        window.location.href = 'index.html';
+        return;
+      }
+      const content = document.getElementById('content');
+      document.getElementById('navDelivery').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadDelivery();
+      });
+      async function loadDelivery() {
+        let date = getTomorrow();
+        let html = '<h1>Plan de livraison</h1>';
+        html += '<label for="delDate">Date :</label> <input type="date" id="delDate" value="' + date + '"> ';
+        html += '<button id="refresh">Afficher</button> ';
+        html += '<button id="printBtn">Imprimer</button>';
+        html += '<div id="deliveryTable"></div>';
+        content.innerHTML = html;
+        const fetchData = async () => {
+          date = document.getElementById('delDate').value;
+          if (!date) return;
+          try {
+            const data = await apiRequest(`/api/labo/delivery/${date}`);
+            let table = '<table><thead><tr><th>Boutique</th><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+            if (data.length === 0) {
+              table += '<tr><td colspan="3">Aucune commande.</td></tr>';
+            } else {
+              data.forEach(order => {
+                order.items.forEach(item => {
+                  table += `<tr><td>${order.boutique_name || ''}</td><td>${item.product_name}</td><td>${item.quantity}</td></tr>`;
+                });
+              });
+            }
+            table += '</tbody></table>';
+            document.getElementById('deliveryTable').innerHTML = table;
+          } catch (err) {
+            document.getElementById('deliveryTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+          }
+        };
+        document.getElementById('refresh').addEventListener('click', fetchData);
+        document.getElementById('printBtn').addEventListener('click', () => {
+          window.print();
+        });
+        fetchData();
+      }
+      // default
+      loadDelivery();
+    })();
+  </script>
+</body>
+</html>

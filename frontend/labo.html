@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Labo – Consolidation des commandes</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="nav">
+    <h2>Labo</h2>
+    <a href="#" id="navProduction">Production</a>
+    <a href="#" id="navDelivery">Livraison</a>
+    <a href="#" id="navOrders">Commandes</a>
+    <a href="#" onclick="logout()" class="logout">Déconnexion</a>
+  </div>
+  <div class="main">
+    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div id="content"></div>
+  </div>
+  <script src="js/common.js"></script>
+  <script>
+    (function() {
+      const user = getUser();
+      if (!user || (user.role !== 'labo' && user.role !== 'admin')) {
+        window.location.href = 'index.html';
+        return;
+      }
+      const content = document.getElementById('content');
+      document.getElementById('navProduction').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadProduction();
+      });
+      document.getElementById('navDelivery').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadDelivery();
+      });
+      document.getElementById('navOrders').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadOrders();
+      });
+      async function loadProduction() {
+        let date = getTomorrow();
+        let html = '<h1>Plan de production</h1>';
+        html += '<label for="prodDate">Date :</label> <input type="date" id="prodDate" value="' + date + '"> '; 
+        html += '<button id="refreshProd">Afficher</button> ';
+        html += '<button id="printProd">Imprimer</button>';
+        html += '<div id="prodTable"></div>';
+        content.innerHTML = html;
+        const fetchData = async () => {
+          date = document.getElementById('prodDate').value;
+          if (!date) return;
+          try {
+            const data = await apiRequest(`/api/labo/aggregate?date=${date}`);
+            let table = '<table><thead><tr><th>Produit</th><th>Quantité totale</th></tr></thead><tbody>';
+            if (data.length === 0) {
+              table += '<tr><td colspan="2">Aucune commande pour cette date.</td></tr>';
+            } else {
+              data.forEach(row => {
+                table += `<tr><td>${row.product_name}</td><td>${row.total_quantity}</td></tr>`;
+              });
+            }
+            table += '</tbody></table>';
+            document.getElementById('prodTable').innerHTML = table;
+          } catch (err) {
+            document.getElementById('prodTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+          }
+        };
+        document.getElementById('refreshProd').addEventListener('click', fetchData);
+        document.getElementById('printProd').addEventListener('click', () => {
+          window.print();
+        });
+        fetchData();
+      }
+      async function loadDelivery() {
+        let date = getTomorrow();
+        let html = '<h1>Plan de livraison</h1>';
+        html += '<label for="delivDate">Date :</label> <input type="date" id="delivDate" value="' + date + '"> ';
+        html += '<button id="refreshDeliv">Afficher</button> ';
+        html += '<button id="printDeliv">Imprimer</button>';
+        html += '<div id="delivTable"></div>';
+        content.innerHTML = html;
+        const fetchData = async () => {
+          date = document.getElementById('delivDate').value;
+          if (!date) return;
+          try {
+            const data = await apiRequest(`/api/labo/delivery/${date}`);
+            let table = '<table><thead><tr><th>Boutique</th><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+            if (data.length === 0) {
+              table += '<tr><td colspan="3">Aucune commande pour cette date.</td></tr>';
+            } else {
+              data.forEach(order => {
+                order.items.forEach(item => {
+                  table += `<tr><td>${order.boutique_name || ''}</td><td>${item.product_name}</td><td>${item.quantity}</td></tr>`;
+                });
+              });
+            }
+            table += '</tbody></table>';
+            document.getElementById('delivTable').innerHTML = table;
+          } catch (err) {
+            document.getElementById('delivTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+          }
+        };
+        document.getElementById('refreshDeliv').addEventListener('click', fetchData);
+        document.getElementById('printDeliv').addEventListener('click', () => {
+          window.print();
+        });
+        fetchData();
+      }
+      async function loadOrders() {
+        let date = getTomorrow();
+        let html = '<h1>Commandes par boutique</h1>';
+        html += '<label for="cmdDate">Date :</label> <input type="date" id="cmdDate" value="' + date + '"> ';
+        html += '<button id="refreshCmd">Afficher</button>';
+        html += '<div id="ordersTable"></div>';
+        content.innerHTML = html;
+        const fetchData = async () => {
+          date = document.getElementById('cmdDate').value;
+          if (!date) return;
+          try {
+            const orders = await apiRequest(`/api/orders?date=${date}`);
+            let table = '<table><thead><tr><th>Boutique</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
+            if (orders.length === 0) {
+              table += '<tr><td colspan="3">Aucune commande.</td></tr>';
+            } else {
+              orders.forEach(order => {
+                table += `<tr><td>${order.boutique_id}</td><td>${order.status}</td><td>`;
+                if (order.status !== 'validated') {
+                  table += `<button data-id="${order.id}" class="finalizeBtn">Valider</button>`;
+                }
+                table += '</td></tr>';
+              });
+            }
+            table += '</tbody></table>';
+            document.getElementById('ordersTable').innerHTML = table;
+            document.querySelectorAll('.finalizeBtn').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm('Valider cette commande ?')) {
+                  try {
+                    await apiRequest(`/api/orders/${id}/finalize`, 'POST');
+                    fetchData();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }
+              });
+            });
+          } catch (err) {
+            document.getElementById('ordersTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+          }
+        };
+        document.getElementById('refreshCmd').addEventListener('click', fetchData);
+        fetchData();
+      }
+      // Default view
+      loadProduction();
+    })();
+  </script>
+</body>
+</html>

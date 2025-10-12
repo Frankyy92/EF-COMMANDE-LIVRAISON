@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – Gestion des données</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="nav">
+    <h2>Admin</h2>
+    <a href="#" id="navCategories">Catégories</a>
+    <a href="#" id="navProducts">Produits</a>
+    <a href="#" id="navLogs">Historique</a>
+    <a href="#" onclick="logout()" class="logout">Déconnexion</a>
+  </div>
+  <div class="main">
+    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div id="content"></div>
+  </div>
+  <script src="js/common.js"></script>
+  <script>
+    (function() {
+      const user = getUser();
+      if (!user || user.role !== 'admin') {
+        window.location.href = 'index.html';
+        return;
+      }
+      // Elements
+      const navCategories = document.getElementById('navCategories');
+      const navProducts = document.getElementById('navProducts');
+      const navLogs = document.getElementById('navLogs');
+      const content = document.getElementById('content');
+
+      navCategories.addEventListener('click', (e) => {
+        e.preventDefault();
+        loadCategories();
+      });
+      navProducts.addEventListener('click', (e) => {
+        e.preventDefault();
+        loadProducts();
+      });
+      navLogs.addEventListener('click', (e) => {
+        e.preventDefault();
+        loadLogs();
+      });
+
+      async function loadCategories() {
+        // Fetch categories
+        try {
+          const cats = await apiRequest('/api/categories');
+          // Render
+          let html = '<h1>Catégories</h1>';
+          html += '<table><thead><tr><th>ID</th><th>Nom</th><th>Actions</th></tr></thead><tbody>';
+          cats.forEach(cat => {
+            html += `<tr><td>${cat.id}</td><td>${cat.name}</td><td><button data-id="${cat.id}" class="delCat">Supprimer</button></td></tr>`;
+          });
+          html += '</tbody></table>';
+          html += '<h3>Ajouter une catégorie</h3>';
+          html += '<input type="text" id="newCatName" placeholder="Nom de la catégorie"> <button id="addCatBtn">Ajouter</button>';
+          content.innerHTML = html;
+          document.getElementById('addCatBtn').addEventListener('click', async () => {
+            const name = document.getElementById('newCatName').value.trim();
+            if (!name) return;
+            try {
+              await apiRequest('/api/categories', 'POST', { name });
+              loadCategories();
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+          document.querySelectorAll('.delCat').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const id = btn.getAttribute('data-id');
+              if (confirm('Supprimer cette catégorie ?')) {
+                try {
+                  await apiRequest(`/api/categories/${id}`, 'DELETE');
+                  loadCategories();
+                } catch (err) {
+                  alert(err.message);
+                }
+              }
+            });
+          });
+        } catch (err) {
+          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+        }
+      }
+
+      async function loadProducts() {
+        try {
+          const cats = await apiRequest('/api/categories');
+          // render category select
+          let html = '<h1>Produits</h1>';
+          html += '<label>Filtrer par catégorie :</label> <select id="filterCategory"><option value="">Toutes</option>';
+          cats.forEach(cat => {
+            html += `<option value="${cat.id}">${cat.name}</option>`;
+          });
+          html += '</select> <button id="refreshProds">Rafraîchir</button>';
+          html += '<div id="prodTableContainer"></div>';
+          html += '<h3>Ajouter un produit</h3>';
+          html += '<input type="text" id="newProdName" placeholder="Nom du produit"> ';
+          html += '<select id="newProdCat"><option value="">Catégorie</option>';
+          cats.forEach(cat => {
+            html += `<option value="${cat.id}">${cat.name}</option>`;
+          });
+          html += '</select> <button id="addProdBtn">Ajouter</button>';
+          content.innerHTML = html;
+          const loadList = async () => {
+            const catId = document.getElementById('filterCategory').value;
+            const endpoint = catId ? `/api/products?category_id=${catId}` : '/api/products';
+            const products = await apiRequest(endpoint);
+            let table = '<table><thead><tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Actions</th></tr></thead><tbody>';
+            products.forEach(p => {
+              const catName = cats.find(c => c.id === p.category_id)?.name || '';
+              table += `<tr><td>${p.id}</td><td>${p.name}</td><td>${catName}</td><td><button data-id="${p.id}" class="delProd">Supprimer</button></td></tr>`;
+            });
+            table += '</tbody></table>';
+            document.getElementById('prodTableContainer').innerHTML = table;
+            document.querySelectorAll('.delProd').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm('Supprimer ce produit ?')) {
+                  try {
+                    await apiRequest(`/api/products/${id}`, 'DELETE');
+                    loadList();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }
+              });
+            });
+          };
+          // initial load
+          loadList();
+          document.getElementById('refreshProds').addEventListener('click', loadList);
+          document.getElementById('filterCategory').addEventListener('change', loadList);
+          document.getElementById('addProdBtn').addEventListener('click', async () => {
+            const name = document.getElementById('newProdName').value.trim();
+            const catId = document.getElementById('newProdCat').value;
+            if (!name || !catId) return;
+            try {
+              await apiRequest('/api/products', 'POST', { name, category_id: parseInt(catId) });
+              document.getElementById('newProdName').value = '';
+              document.getElementById('newProdCat').value = '';
+              loadList();
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+        } catch (err) {
+          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+        }
+      }
+
+      async function loadLogs() {
+        try {
+          const logs = await apiRequest('/api/logs');
+          let html = '<h1>Historique des actions</h1>';
+          html += '<table><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th></tr></thead><tbody>';
+          logs.forEach(l => {
+            html += `<tr><td>${new Date(l.timestamp).toLocaleString()}</td><td>${l.user_id || ''}</td><td>${l.action}</td><td>${l.details || ''}</td></tr>`;
+          });
+          html += '</tbody></table>';
+          content.innerHTML = html;
+        } catch (err) {
+          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+        }
+      }
+
+      // Load default view
+      loadCategories();
+    })();
+  </script>
+</body>
+</html>

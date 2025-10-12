@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion – Commandes Pâtisserie</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Centered login container */
+    .login-container {
+      max-width: 360px;
+      margin: 80px auto;
+      padding: 20px 30px;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .login-container h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .login-container label {
+      display: block;
+      margin: 12px 0 4px;
+    }
+    .login-container input, .login-container select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+    }
+    .login-container button {
+      width: 100%;
+      margin-top: 20px;
+    }
+    .error {
+      color: #dc2626;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h1>Connexion</h1>
+    <form id="loginForm">
+      <label for="username">Identifiant</label>
+      <input type="text" id="username" required>
+      <label for="role">Rôle</label>
+      <select id="role" required>
+        <option value="boutique">Boutique</option>
+        <option value="labo">Labo</option>
+        <option value="admin">Administrateur</option>
+        <option value="livreur">Livreur</option>
+      </select>
+      <div id="boutiqueNameContainer" style="display:none;">
+        <label for="boutiqueName">Nom de la boutique</label>
+        <input type="text" id="boutiqueName">
+      </div>
+      <button type="submit">Se connecter</button>
+      <div class="error" id="loginError"></div>
+    </form>
+  </div>
+  <script src="js/common.js"></script>
+  <script>
+    // Show or hide boutique name field based on role
+    const roleSelect = document.getElementById('role');
+    const boutiqueContainer = document.getElementById('boutiqueNameContainer');
+    roleSelect.addEventListener('change', () => {
+      if (roleSelect.value === 'boutique') {
+        boutiqueContainer.style.display = 'block';
+      } else {
+        boutiqueContainer.style.display = 'none';
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const role = roleSelect.value;
+      const boutiqueName = document.getElementById('boutiqueName').value.trim();
+      const payload = { username, role };
+      if (role === 'boutique' && boutiqueName) {
+        payload.boutique_name = boutiqueName;
+      }
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          document.getElementById('loginError').innerText = err.error || 'Erreur de connexion';
+          return;
+        }
+        const data = await res.json();
+        localStorage.setItem('user', JSON.stringify(data.user));
+        // redirect based on role
+        if (data.user.role === 'admin') {
+          window.location.href = 'admin.html';
+        } else if (data.user.role === 'labo') {
+          window.location.href = 'labo.html';
+        } else if (data.user.role === 'boutique') {
+          window.location.href = 'boutique.html';
+        } else if (data.user.role === 'livreur') {
+          window.location.href = 'livreur.html';
+        } else {
+          window.location.href = 'boutique.html';
+        }
+      } catch (err) {
+        document.getElementById('loginError').innerText = err.message;
+      }
+    });
+  </script>
+</body>
+</html>
