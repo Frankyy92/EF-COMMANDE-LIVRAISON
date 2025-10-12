@@ -1,0 +1,50 @@
+{
+  "categories": [
+    {
+      "id": "cat-boulangerie",
+      "name": "Boulangerie"
+    },
+    {
+      "id": "cat-patisserie",
+      "name": "Pâtisserie"
+    },
+    {
+      "id": "cat-boissons",
+      "name": "Boissons"
+    }
+  ],
+  "products": [
+    {
+      "id": "prd-baguette",
+      "name": "Baguette",
+      "price": 1.2,
+      "categoryId": "cat-boulangerie"
+    },
+    {
+      "id": "prd-pain-choco",
+      "name": "Pain au chocolat",
+      "price": 1.1,
+      "categoryId": "cat-patisserie"
+    },
+    {
+      "id": "prd-cafe",
+      "name": "Café",
+      "price": 2.0,
+      "categoryId": "cat-boissons"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-demo-1",
+      "client": "Démo Boutique",
+      "items": [
+        {
+          "productId": "prd-baguette",
+          "qty": 2
+        }
+      ],
+      "status": "non-traite",
+      "createdAt": "2025-10-12T10:00:00Z"
+    }
+  ]
+}

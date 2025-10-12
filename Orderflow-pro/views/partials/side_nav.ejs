@@ -1,0 +1,36 @@
+<% if (role === 'admin') { %>
+  <h4>Administration</h4>
+  <div class="nav-group">
+    <a class="nav-item" href="/admin">Tableau de bord</a>
+    <a class="nav-item" href="/admin/categories">Catégories</a>
+    <a class="nav-item" href="/admin/products">Produits</a>
+    <a class="nav-item" href="/admin/orders">Commandes</a>
+    <a class="nav-item" href="/logout">Déconnexion</a>
+  </div>
+<% } else if (role === 'labo') { %>
+  <h4>Labo</h4>
+  <div class="nav-group">
+    <a class="nav-item" href="/labo">Préparations</a>
+    <a class="nav-item" href="/labo/historique">Historique</a>
+    <a class="nav-item" href="/">Accueil</a>
+  </div>
+<% } else if (role === 'livreur') { %>
+  <h4>Livreur</h4>
+  <div class="nav-group">
+    <a class="nav-item" href="/livreur">Livraisons</a>
+    <a class="nav-item" href="/livreur/historique">Historique</a>
+    <a class="nav-item" href="/">Accueil</a>
+  </div>
+<% } else if (role === 'boutique') { %>
+  <h4>Boutique</h4>
+  <div class="nav-group">
+    <a class="nav-item" href="/boutique">Nouvelle commande</a>
+    <a class="nav-item" href="/boutique/commandes">Mes commandes</a>
+    <a class="nav-item" href="/">Accueil</a>
+  </div>
+<% } else { %>
+  <h4>Navigation</h4>
+  <div class="nav-group">
+    <a class="nav-item" href="/">Accueil</a>
+  </div>
+<% } %>
