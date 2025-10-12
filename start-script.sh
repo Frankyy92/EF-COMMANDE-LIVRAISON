@@ -1,24 +1,25 @@
 #!/bin/bash
 
+# start-script.sh
+# Script de démarrage de l'application en production (Render, etc.)
+
+set -e
+
 echo "🚀 Démarrage de l'application Orderflow..."
 
-# Variables d'environnement
-export DB_PATH="/var/data/orderflow.sqlite"
-export SESSION_SECRET=${SESSION_SECRET:-"orderflow-secret-2024"}
-export PORT=${PORT:-10000}
+# Variables d'environnement avec valeurs par défaut
+export DB_PATH="${DB_PATH:-/var/data/orderflow.sqlite}"
+export SESSION_SECRET="${SESSION_SECRET:-orderflow-secret-2024}"
+export PORT="${PORT:-10000}"
 export NODE_ENV="production"
 
 # Créer le dossier data si nécessaire
-mkdir -p /var/data
+mkdir -p "$(dirname "$DB_PATH")"
 
-# Vérifier si la base existe, sinon la créer
-if [ ! -f "$DB_PATH" ]; then
-    echo "📦 Initialisation de la base de données..."
-    node fix-database.js
-fi
+# Initialiser / réparer la base (idempotent)
+echo "🛠️  Vérification/initialisation de la base de données ($DB_PATH)..."
+node fix-database-script.js
 
-echo "✅ Base de données prête"
-echo "🌐 Démarrage du serveur sur le port $PORT..."
-
-# Démarrer l'application
-node app.js
+echo "✅ Base prête"
+echo "🌐 Lancement du serveur (port $PORT)..."
+exec node app.js
