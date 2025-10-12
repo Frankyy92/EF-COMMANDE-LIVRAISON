@@ -1,13 +1,13 @@
 // app.js
 // Charge .env si présent (facultatif en prod)
-try { require('dotenv').config(); } catch (_e) {}
+try { require('dotenv').config(); } catch (_) {}
 
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const { db, init } = require('./db');
 
-// Pour compat ascendante (si app.js appelle encore init())
+// Compat si certains appels font encore init()
 if (typeof init === 'function') init();
 
 const app = express();
@@ -71,14 +71,8 @@ app.get('/', (req, res) => {
   return res.send('Rôle non reconnu');
 });
 
-// Lancement
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Orderflow app listening on port ${PORT}`);
-});
-
-
-// Démarrer le serveur
+// ---- LANCEMENT ----
+// ⚠️ Déclare PORT UNE SEULE FOIS
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Orderflow app listening on port ${PORT}`);
