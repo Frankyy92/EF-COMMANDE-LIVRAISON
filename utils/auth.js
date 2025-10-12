@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 /**
- * Hash sécurisé par défaut (bcrypt)
+ * Hash sécurisé par défaut (bcrypt).
  */
 function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
@@ -11,7 +11,7 @@ function hashPassword(password) {
 
 /**
  * Vérifie un mot de passe contre un hash bcrypt OU ancien SHA-256.
- * - Si le hash commence par "$2" => c'est un hash bcrypt.
+ * - Si le hash commence par "$2" => c'est bcrypt.
  * - Sinon, on compare en SHA-256 (compat legacy).
  */
 function verifyPassword(password, hashed) {
@@ -24,7 +24,6 @@ function verifyPassword(password, hashed) {
       return false;
     }
   }
-
   const sha = crypto.createHash('sha256').update(password).digest('hex');
   return sha === hashed;
 }
