@@ -1,117 +1,105 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connexion – Commandes Pâtisserie</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css" />
   <style>
-    /* Centered login container */
     .login-container {
-      max-width: 360px;
-      margin: 80px auto;
-      padding: 20px 30px;
-      background-color: #fff;
-      border-radius: 6px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 360px; margin: 80px auto; padding: 24px;
+      background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.08);
     }
-    .login-container h1 {
-      text-align: center;
-      margin-bottom: 20px;
+    .login-container h1 { margin: 0 0 12px; }
+    .field { margin: 10px 0; }
+    .field label { display:block; font-size:14px; margin-bottom:6px; }
+    .input, select {
+      width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:12px;
     }
-    .login-container label {
-      display: block;
-      margin: 12px 0 4px;
-    }
-    .login-container input, .login-container select {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
-    }
-    .login-container button {
-      width: 100%;
-      margin-top: 20px;
-    }
-    .error {
-      color: #dc2626;
-      margin-top: 10px;
-      text-align: center;
-    }
+    .btn { background:#1e293b; color:#fff; border:none; border-radius:14px; padding:12px 16px; width:100%; cursor:pointer; }
+    .hint { font-size:12px; color:#6b7280; margin-top:8px; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
   <div class="login-container">
     <h1>Connexion</h1>
-    <form id="loginForm">
-      <label for="username">Identifiant</label>
-      <input type="text" id="username" required>
+    <p class="hint">Pas de mot de passe : entre un identifiant et choisis ton rôle.</p>
+
+    <div class="field">
+      <label for="identifier">Identifiant</label>
+      <input id="identifier" class="input" placeholder="ex : admin, labo, sainteger" />
+    </div>
+
+    <div class="field">
       <label for="role">Rôle</label>
-      <select id="role" required>
+      <select id="role" class="input">
         <option value="boutique">Boutique</option>
         <option value="labo">Labo</option>
-        <option value="admin">Administrateur</option>
+        <option value="admin">Admin</option>
         <option value="livreur">Livreur</option>
       </select>
-      <div id="boutiqueNameContainer" style="display:none;">
-        <label for="boutiqueName">Nom de la boutique</label>
-        <input type="text" id="boutiqueName">
-      </div>
-      <button type="submit">Se connecter</button>
-      <div class="error" id="loginError"></div>
-    </form>
+    </div>
+
+    <div id="boutiqueBlock" class="field">
+      <label for="boutique_name">Nom de la boutique</label>
+      <input id="boutique_name" class="input" placeholder="ex : Suresnes, Neuilly, Saint-Germain, Rueil" />
+      <p class="hint">Si tu es boutique, renseigne le nom (utile pour les plans de livraison).</p>
+    </div>
+
+    <button id="loginBtn" class="btn">Se connecter</button>
+    <div id="error" class="hint" style="color:#b91c1c; margin-top:10px;"></div>
   </div>
+
   <script src="js/common.js"></script>
   <script>
-    // Show or hide boutique name field based on role
-    const roleSelect = document.getElementById('role');
-    const boutiqueContainer = document.getElementById('boutiqueNameContainer');
-    roleSelect.addEventListener('change', () => {
-      if (roleSelect.value === 'boutique') {
-        boutiqueContainer.style.display = 'block';
-      } else {
-        boutiqueContainer.style.display = 'none';
-      }
+    // Affiche / masque le champ boutique selon le rôle
+    const roleEl = document.getElementById('role');
+    const boutiqueBlock = document.getElementById('boutiqueBlock');
+    roleEl.addEventListener('change', () => {
+      boutiqueBlock.classList.toggle('hidden', roleEl.value !== 'boutique');
     });
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const role = roleSelect.value;
-      const boutiqueName = document.getElementById('boutiqueName').value.trim();
-      const payload = { username, role };
-      if (role === 'boutique' && boutiqueName) {
-        payload.boutique_name = boutiqueName;
+    // Au clic sur "Se connecter" :
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const identifier = document.getElementById('identifier').value.trim();
+      const role = roleEl.value;
+      const boutique_name = document.getElementById('boutique_name').value.trim();
+      const errorBox = document.getElementById('error');
+      errorBox.textContent = '';
+
+      if (!identifier) {
+        errorBox.textContent = 'Merci de saisir un identifiant.';
+        return;
       }
+      if (role === 'boutique' && !boutique_name) {
+        errorBox.textContent = 'Merci d’indiquer le nom de la boutique.';
+        return;
+      }
+
+      // 1) Tentative d’API /api/login si elle existe (sinon on passe en fallback)
       try {
-        const res = await apiRequest('…'/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          document.getElementById('loginError').innerText = err.error || 'Erreur de connexion';
-          return;
-        }
-        const data = await res.json();
-        localStorage.setItem('user', JSON.stringify(data.user));
-        // redirect based on role
-        if (data.user.role === 'admin') {
-          window.location.href = 'admin.html';
-        } else if (data.user.role === 'labo') {
-          window.location.href = 'labo.html';
-        } else if (data.user.role === 'boutique') {
-          window.location.href = 'boutique.html';
-        } else if (data.user.role === 'livreur') {
-          window.location.href = 'livreur.html';
-        } else {
-          window.location.href = 'boutique.html';
-        }
-      } catch (err) {
-        document.getElementById('loginError').innerText = err.message;
+        const resp = await apiRequest('/api/login', 'POST', { identifier, role, boutique_name });
+        // On accepte 2 formats possibles: soit l’API renvoie le user, soit rien.
+        const user = (resp && typeof resp === 'object')
+          ? (resp.user || { id: identifier, role, boutique_name })
+          : { id: identifier, role, boutique_name };
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (e) {
+        // 2) Fallback local : pas d’endpoint /api/login nécessaire, le back lit juste X-User-Id
+        const user = { id: identifier, role, boutique_name: role === 'boutique' ? boutique_name : undefined };
+        localStorage.setItem('user', JSON.stringify(user));
       }
+
+      // Redirection selon le rôle
+      const to = (role === 'admin')
+        ? 'admin.html'
+        : (role === 'labo')
+          ? 'labo.html'
+          : (role === 'livreur')
+            ? 'livreur.html'
+            : 'boutique.html';
+      window.location.href = to;
     });
   </script>
 </body>
