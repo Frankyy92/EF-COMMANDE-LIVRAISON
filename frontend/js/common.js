@@ -1,67 +1,88 @@
-/*
- * Common utilities for the bakery frontend. Handles API calls with the
- * current user ID, session management (localStorage), and responsive
- * navigation.
- */
+/* ============================================================
+ * Common utilities for the bakery frontend.
+ * - Centralise l'URL de l'API (API_BASE)
+ * - Appels fetch avec l'ID utilisateur si présent
+ * - Gestion session & helpers UI
+ * ============================================================ */
 
-// Retrieve the current user from localStorage
+const API_BASE = 'https://orderflow-pro-f7lb.onrender.com'; // <= TON backend Render
+
+// Compose une URL absolue vers l'API
+function apiUrl(path) {
+  if (!path) return API_BASE;
+  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+// Récupère l'utilisateur courant depuis le localStorage
 function getUser() {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
-    return user;
+    return user || null;
   } catch (e) {
     return null;
   }
 }
 
-// Perform an API request with the appropriate headers
+// Appel générique à l'API (JSON par défaut)
 async function apiRequest(path, method = 'GET', body = null) {
   const user = getUser();
+
   const headers = {
     'Content-Type': 'application/json'
   };
+  // Le backend lise X-User-Id pour savoir "qui" agit (pas de mot de passe)
   if (user && user.id) {
     headers['X-User-Id'] = user.id;
   }
-  const options = {
-    method,
-    headers
-  };
-  if (body) {
+
+  const options = { method, headers };
+  if (body !== null && body !== undefined) {
     options.body = JSON.stringify(body);
   }
+
+  // IMPORTANT : on appelle TOUJOURS l'URL absolue de l'API
+  const url = apiUrl(path);
+
   try {
-    const res = await fetch(path, options);
+    const res = await fetch(url, options);
+
+    // CORS / preflight
+    if (res.status === 204) return null;
+
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || 'Erreur serveur');
+      // Essaie de lire l'erreur JSON renvoyée par l'API
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const data = await res.json();
+        errMsg = data.error || errMsg;
+      } catch (_) {}
+      throw new Error(errMsg);
     }
-    // If response is JSON
-    const contentType = res.headers.get('Content-Type');
-    if (contentType && contentType.includes('application/json')) {
+
+    const contentType = res.headers.get('Content-Type') || '';
+    if (contentType.includes('application/json')) {
       return await res.json();
     }
     return await res.text();
   } catch (err) {
-    throw err;
+    // Remonte une erreur lisible dans l'UI
+    throw new Error(err.message || 'Erreur réseau');
   }
 }
 
-// Logout and redirect to login page
+// Déconnexion
 function logout() {
   localStorage.removeItem('user');
   window.location.href = 'index.html';
 }
 
-// Toggle the side navigation on small screens
+// Menu latéral (mobile)
 function toggleNav() {
   const nav = document.querySelector('.nav');
-  if (nav) {
-    nav.classList.toggle('open');
-  }
+  if (nav) nav.classList.toggle('open');
 }
 
-// Format date to YYYY-MM-DD for input[type=date]
+// Format YYYY-MM-DD
 function formatDate(date) {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -70,9 +91,19 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Get tomorrow's date in YYYY-MM-DD
+// Demain en YYYY-MM-DD
 function getTomorrow() {
   const t = new Date();
   t.setDate(t.getDate() + 1);
   return formatDate(t);
+}
+
+// Petit “health check” pour diagnostiquer vite si le front joint le back
+async function pingBackend() {
+  try {
+    const txt = await apiRequest('/api/health'); // si non présent, ignore simplement
+    return txt;
+  } catch (_) {
+    return null;
+  }
 }
