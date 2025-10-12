@@ -1,0 +1,9 @@
+<% layout('layout') -%>
+<h2>Plan de production – <%= targetDate %></h2>
+<table>
+  <tr><th>Produit</th><th>Quantité totale</th></tr>
+  <% plan.forEach(l => { %>
+    <tr><td><%= l.product_name %></td><td><%= l.qty %></td></tr>
+  <% }) %>
+</table>
+<p><a href="/labo/production.csv" class="btn">Exporter CSV</a></p>

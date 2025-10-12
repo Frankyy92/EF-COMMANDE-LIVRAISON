@@ -1,15 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= typeof title !== 'undefined' ? title : 'Orderflow' %></title>
-  <link rel="stylesheet" href="/public/css/style.css">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OrderFlow Labo</title>
+  <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
-  <%- include('partials/header') %>
-  <div class="container">
+  <header class="topbar">
+    <h1>OrderFlow Labo</h1>
+    <form method="post" action="/logout">
+      <button type="submit">Se déconnecter</button>
+    </form>
+  </header>
+  <main class="container">
     <%- body %>
-  </div>
+  </main>
 </body>
 </html>

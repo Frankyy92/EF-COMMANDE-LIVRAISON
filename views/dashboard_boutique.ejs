@@ -1,0 +1,10 @@
+<% layout('layout') -%>
+<h2>Boutique: <%= boutique.name %></h2>
+<p>Commande pour J+1: <strong><%= targetDate %></strong></p>
+<% if (order) { %>
+  <p>Statut: <code><%= order.status %></code></p>
+  <a href="/boutique/order" class="btn">Ouvrir / modifier la commande</a>
+<% } else { %>
+  <a href="/boutique/order" class="btn">Créer la commande</a>
+<% } %>
+<p>Cut-off à <strong><%= cutoffHour %>:00</strong> (après, la commande est gelée).</p>

@@ -1,0 +1,83 @@
+<% layout('layout') -%>
+<h2>Labo – Consolidation commandes J+1 (<%= targetDate %>)</h2>
+
+<div class="toolbar">
+  <input id="searchBox" placeholder="Rechercher un produit/boutique..." oninput="filterCells()"/>
+  <select id="catFilter" onchange="filterCells()">
+    <option value="">Toutes catégories</option>
+    <option>VIENNOISERIE</option>
+    <option>PATISSERIE</option>
+    <option>GATEAU DE VOYAGE</option>
+    <option>TRAITEUR</option>
+    <option>BOULANGERIE</option>
+    <option>ECONOMAT</option>
+    <option>MACARON</option>
+    <option>PETIT FOUR SEC</option>
+    <option>CAKE</option>
+    <option>CAISSES</option>
+  </select>
+</div>
+<table id="labTable">
+  <tr>
+    <th>Boutique</th>
+    <% products.forEach(p => { %><th data-category="<%= p.category %>"><%= p.name %><br/><small><%= p.category || '' %></small></th><% }) %>
+  </tr>
+  <% boutiques.forEach(b => { %>
+    <tr>
+      <td><%= b.name %></td>
+      <% products.forEach(p => { 
+         const orderItems = items.filter(i => i.boutique_id === b.id && i.product_id === p.id);
+         const ordered = orderItems.reduce((sum, it) => sum + (it.qty || 0), 0);
+         const adjKey = `${b.id}-${p.id}`;
+         const adj = adjMap[adjKey] || 0;
+      %>
+        <td>
+          <div>Cmd: <%= ordered %></div>
+          <div>Adj:
+            <form method="post" action="/labo/adjust" class="inline">
+              <input type="hidden" name="boutique_id" value="<%= b.id %>"/>
+              <input type="hidden" name="product_id" value="<%= p.id %>"/>
+              <input type="number" name="adjusted_qty" value="<%= adj %>" />
+              <button type="submit">OK</button>
+            </form>
+          </div>
+          <div><strong>Total: <%= ordered + adj %></strong></div>
+        </td>
+      <% }) %>
+    </tr>
+  <% }) %>
+</table>
+
+<p>
+  <a href="/labo/production" class="btn">Voir Plan de production</a>
+  <a href="/labo/delivery" class="btn">Voir Plan de livraison</a>
+</p>
+
+<form method="post" action="/labo/lock">
+  <button type="submit" class="danger">Verrouiller toutes les commandes</button>
+</form>
+
+<script>
+function filterCells(){
+  const q = (document.getElementById('searchBox').value||'').toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const table = document.getElementById('labTable');
+  const ths = table.querySelectorAll('th[data-category]');
+  const showCol = [];
+  ths.forEach((th, idx) => {
+    const c = th.getAttribute('data-category') || '';
+    const name = th.innerText.toLowerCase();
+    const okTxt = !q || name.indexOf(q) !== -1;
+    const okCat = !cat || c === cat;
+    showCol[idx+1] = (okTxt && okCat); // +1 because first col is Boutique
+  });
+  // Iterate rows
+  table.querySelectorAll('tr').forEach((tr, rIdx)=>{
+    tr.querySelectorAll('th,td').forEach((cell, cIdx)=>{
+      if (rIdx===0 && cIdx===0) return; // headers "Boutique"
+      if (rIdx===0 && cIdx>0) cell.style.display = showCol[cIdx] ? '' : 'none';
+      if (rIdx>0 && cIdx>0) cell.style.display = showCol[cIdx] ? '' : 'none';
+    });
+  });
+}
+</script>

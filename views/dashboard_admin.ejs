@@ -1,0 +1,100 @@
+<% layout('layout') -%>
+<h2>Administration</h2>
+
+<section class="grid">
+  <div class="card">
+    <h3>Produits</h3>
+    <form method="post" action="/admin/products">
+      <input name="sku" placeholder="SKU" required/>
+      <input name="name" placeholder="Nom" required/>
+      <input name="unit" placeholder="Unité (pcs)" />
+      <label><input type="checkbox" name="is_raw" value="1"/> Viennoiserie crue ?</label>
+      <button>Ajouter</button>
+    </form>
+    <table>
+      <tr><th>SKU</th><th>Nom</th><th>Unité</th><th>Type</th><th></th></tr>
+      <% products.forEach(p => { %>
+        <tr>
+          <td><%= p.sku %></td>
+          <td><%= p.name %></td>
+          <td><%= p.unit %></td>
+          <td><%= p.is_raw ? 'Cru' : 'Fini' %></td>
+          <td>
+            <form method="post" action="/admin/products/<%= p.id %>/delete">
+              <button class="danger">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Boutiques</h3>
+    <form method="post" action="/admin/boutiques">
+      <input name="name" placeholder="Nom" required/>
+      <input name="address" placeholder="Adresse"/>
+      <button>Ajouter</button>
+    </form>
+    <table>
+      <tr><th>Nom</th><th>Adresse</th><th></th></tr>
+      <% boutiques.forEach(b => { %>
+        <tr>
+          <td><%= b.name %></td>
+          <td><%= b.address || '' %></td>
+          <td>
+            <form method="post" action="/admin/boutiques/<%= b.id %>/delete">
+              <button class="danger">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Utilisateurs</h3>
+    <form method="post" action="/admin/users">
+      <input name="email" type="email" placeholder="email" required/>
+      <input name="password" type="password" placeholder="mot de passe" required/>
+      <select name="role">
+        <option value="admin">admin</option>
+        <option value="labo">labo</option>
+        <option value="boutique">boutique</option>
+      </select>
+      <select name="boutique_id">
+        <option value="">— aucune —</option>
+        <% boutiques.forEach(b => { %>
+          <option value="<%= b.id %>"><%= b.name %></option>
+        <% }) %>
+      </select>
+      <button>Créer</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Tournées</h3>
+    <form method="post" action="/admin/tours">
+      <input name="name" placeholder="Nom tournée (ex: Matinée Nord)"/>
+      <button>Créer</button>
+    </form>
+    <p>Ajoutez des arrêts (ordre) aux tournées existantes depuis la table suivante :</p>
+    <table>
+      <tr><th>Tournée</th><th>Ajouter un arrêt</th></tr>
+      <% tours.forEach(t => { %>
+        <tr>
+          <td><%= t.name %></td>
+          <td>
+            <form method="post" action="/admin/tours/<%= t.id %>/stops">
+              <select name="boutique_id">
+                <% boutiques.forEach(b => { %><option value="<%= b.id %>"><%= b.name %></option><% }) %>
+              </select>
+              <input name="stop_order" type="number" min="1" placeholder="Ordre"/>
+              <button>Ajouter</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </table>
+  </div>
+</section>

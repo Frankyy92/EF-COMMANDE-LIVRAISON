@@ -1,0 +1,62 @@
+<% layout('layout') -%>
+<h2>Commande J+1 (<%= order.for_date %>)</h2>
+<% if (locked) { %><p class="warning">Commande gelée (après cut-off ou verrouillée par le labo).</p><% } %>
+<div class="toolbar">
+  <input id="searchBox" placeholder="Rechercher un produit..." oninput="filterRows()"/>
+  <select id="catFilter" onchange="filterRows()">
+    <option value="">Toutes catégories</option>
+    <option>VIENNOISERIE</option>
+    <option>PATISSERIE</option>
+    <option>GATEAU DE VOYAGE</option>
+    <option>TRAITEUR</option>
+    <option>BOULANGERIE</option>
+    <option>ECONOMAT</option>
+    <option>MACARON</option>
+    <option>PETIT FOUR SEC</option>
+    <option>CAKE</option>
+    <option>CAISSES</option>
+  </select>
+</div>
+<table id="prodTable">
+  <tr><th>Produit</th><th>Qté</th><th>Suggestion</th><th>Action</th></tr>
+  <% products.forEach(p => { 
+     const item = items.find(i => i.product_id === p.id);
+     const qty = item ? item.qty : 0;
+  %>
+  <tr data-category="<%= p.category %>">
+    <td><strong><%= p.name %></strong> <small><%= p.category || '' %></small> <%= p.is_raw ? '(cru)' : '' %></td>
+    <td><%= qty %></td>
+    <td><%= suggestions[p.id] %></td>
+    <td>
+      <% if (!locked) { %>
+      <form method="post" action="/boutique/order/items" class="inline">
+        <input type="hidden" name="product_id" value="<%= p.id %>"/>
+        <input name="qty" type="number" min="0" value="<%= qty %>" />
+        <button type="submit">Enregistrer</button>
+      </form>
+      <% } %>
+    </td>
+  </tr>
+  <% }) %>
+</table>
+
+<% if (!locked) { %>
+  <form method="post" action="/boutique/order/submit">
+    <button type="submit" class="primary">Soumettre la commande</button>
+  </form>
+<% } %>
+
+<script>
+function filterRows(){
+  const q = (document.getElementById('searchBox').value||'').toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const rows = document.querySelectorAll('#prodTable tr[data-category]');
+  rows.forEach(r => {
+    const txt = r.innerText.toLowerCase();
+    const rc = r.getAttribute('data-category') || '';
+    const okTxt = !q || txt.indexOf(q) !== -1;
+    const okCat = !cat || rc === cat;
+    r.style.display = (okTxt && okCat) ? '' : 'none';
+  });
+}
+</script>
