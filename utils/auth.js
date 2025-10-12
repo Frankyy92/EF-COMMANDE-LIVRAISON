@@ -1,22 +1,22 @@
+// utils/auth.js
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-/**
- * Génère un hash SHA-256 pour un mot de passe.
- * @param {string} password
- * @returns {string}
- */
+// Hash sécurisé par défaut (bcrypt)
 function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
-/**
- * Vérifie qu'un mot de passe en clair correspond au hash stocké.
- * @param {string} password
- * @param {string} hashed
- * @returns {boolean}
- */
+// Vérifie un mot de passe contre un hash bcrypt OU ancien SHA-256
 function verifyPassword(password, hashed) {
-  return hashPassword(password) === hashed;
+  if (!hashed) return false;
+  // Bcrypt ?
+  if (typeof hashed === 'string' && hashed.startsWith('$2')) {
+    return bcrypt.compareSync(password, hashed);
+  }
+  // Fallback legacy SHA-256 (pour les anciennes bases)
+  const sha = crypto.createHash('sha256').update(password).digest('hex');
+  return sha === hashed;
 }
 
 module.exports = { hashPassword, verifyPassword };
