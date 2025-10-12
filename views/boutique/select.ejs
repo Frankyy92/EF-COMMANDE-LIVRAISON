@@ -1,9 +1,6 @@
-<div class="card">
-  <h2>Choisir une boutique</h2>
+
+<div class="card"><h2>Choisir une boutique</h2>
   <div class="chips">
-    <% shops.forEach(s => { %>
-      <a class="chip" href="/boutique/<%= s.id %>"><%= s.name %></a>
-    <% }) %>
+    <% shops.forEach(s=>{ %><a class="chip" href="/boutique/<%= s.id %>"><%= s.name %></a><% }) %>
   </div>
-  <p>Sélectionnez une boutique puis une date de commande.</p>
 </div>

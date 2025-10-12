@@ -1,7 +1,1 @@
-(function(){
-  const btn = document.querySelector('[data-burger]');
-  if(!btn) return;
-  btn.addEventListener('click', function(){
-    document.body.classList.toggle('nav-open');
-  });
-})();
+(function(){const b=document.querySelector('[data-burger]');if(!b)return;b.addEventListener('click',()=>document.body.classList.toggle('nav-open'));})();

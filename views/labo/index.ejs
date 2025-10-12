@@ -1,24 +1,10 @@
-<div class="card">
-  <h2>Labo — Préparations</h2>
-  <form method="get">
-    <label>Date</label>
-    <input type="date" name="d" value="<%= date %>">
-    <button class="btn" type="submit" style="margin-top:8px;">Filtrer</button>
-  </form>
-</div>
-<% Object.keys(grouped).forEach(shopId => { const shop = shopsMap[shopId]; %>
-  <div class="card">
-    <h3><%= shop ? shop.name : shopId %></h3>
-    <table>
-      <thead><tr><th>Produit</th><th>Total</th></tr></thead>
-      <tbody>
-        <% Object.keys(grouped[shopId]).forEach(pid => { %>
-          <tr>
-            <td><%= productsMap[pid] ? productsMap[pid].name : pid %></td>
-            <td><%= grouped[shopId][pid] %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+
+<div class="card"><h2>Labo — Préparations</h2>
+<form method="get"><label>Date</label><input class="input" type="date" name="d" value="<%= date %>"><button class="btn" style="margin-top:8px">Filtrer</button></form></div>
+<% Object.keys(grouped).forEach(shopId => { const shop=shopsMap[shopId]; %>
+  <div class="card"><h3><%= shop?shop.name:shopId %></h3>
+    <table><thead><tr><th>Produit</th><th>Total</th></tr></thead><tbody>
+      <% Object.keys(grouped[shopId]).forEach(pid=>{ %><tr><td><%= productsMap[pid]?productsMap[pid].name:pid %></td><td><%= grouped[shopId][pid] %></td></tr><% }) %>
+    </tbody></table>
   </div>
 <% }) %>

@@ -1,5 +1,2 @@
-function requireAdmin(req, res, next) {
-  if (req.session && req.session.isAdmin) return next();
-  return res.redirect('/adminLogin?err=unauth');
-}
-module.exports = { requireAdmin };
+function requireAdmin(req,res,next){ if(req.session&&req.session.isAdmin) return next(); return res.redirect('/adminLogin?err=unauth'); }
+module.exports={requireAdmin};
