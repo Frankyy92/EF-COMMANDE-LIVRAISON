@@ -1,4 +1,4 @@
-// config.js  (CommonJS)
+// config.js
 require('dotenv').config();
 const path = require('path');
 
