@@ -17,13 +17,3 @@ button.danger{background:#e11d48}
 .login input,.login button{width:100%}
 input,select{padding:8px;border:1px solid #ddd;border-radius:8px}
 label{display:block;margin:6px 0}
-
-/* Mobile-friendly */
-@media (max-width: 768px){
-  .container{padding:12px}
-  table{font-size:14px}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-  input,select{width:100%}
-  .btn,button{width:100%}
-}
-.toolbar{display:flex;gap:8px;align-items:center;margin:8px 0}

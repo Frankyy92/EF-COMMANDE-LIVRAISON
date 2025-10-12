@@ -1,109 +1,99 @@
-// db.js
 const Database = require('better-sqlite3');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
 
-const { seedDefaults } = require('./scripts/seed-defaults');
-
-// Chemin DB : Render => /var/data/orderflow.sqlite | Local => ./orderflow.sqlite
-const dbPath = process.env.DB_PATH || path.resolve('./orderflow.sqlite');
-
-// Crée le dossier parent si besoin (utile pour /var/data sur Render)
+const dbPath = path.join(__dirname, 'data', 'app.db');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-// Ouvre la base
 const db = new Database(dbPath);
-try { db.pragma('journal_mode = WAL'); } catch (_) {}
 
-console.log(`📦 DB file => ${dbPath}`);
+db.pragma('journal_mode = WAL');
 
-function init() {
-  db.exec('PRAGMA foreign_keys = ON');
+// Init schema
+db.exec(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('admin','labo','boutique')),
+  boutique_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS boutiques (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE
-    );
+CREATE TABLE IF NOT EXISTS boutiques (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  address TEXT
+);
 
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      slug TEXT NOT NULL UNIQUE
-    );
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sku TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'pcs',
+  category TEXT DEFAULT NULL,
+  is_raw INTEGER NOT NULL DEFAULT 0 -- 1 = viennoiserie crue, 0 = pâtisserie finie
+);
 
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      category TEXT NOT NULL,            -- slug de la catégorie
-      unit TEXT DEFAULT 'pièce',
-      default_quantity INTEGER DEFAULT 0,
-      is_crude INTEGER DEFAULT 0         -- 0/1 : viennoiserie crue
-    );
+-- Commandes passées par les boutiques pour J+1
+CREATE TABLE IF NOT EXISTS orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  boutique_id INTEGER NOT NULL,
+  for_date TEXT NOT NULL, -- date J+1 visée
+  created_by INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft', -- draft|submitted|locked
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(boutique_id, for_date),
+  FOREIGN KEY(boutique_id) REFERENCES boutiques(id),
+  FOREIGN KEY(created_by) REFERENCES users(id)
+);
 
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      role TEXT NOT NULL,
-      boutique_id INTEGER,
-      FOREIGN KEY (boutique_id) REFERENCES boutiques(id)
-    );
+CREATE TABLE IF NOT EXISTS order_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  qty INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY(product_id) REFERENCES products(id)
+);
 
-    CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      boutique_id INTEGER NOT NULL,
-      delivery_date TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      locked INTEGER NOT NULL DEFAULT 0,
-      delivered INTEGER NOT NULL DEFAULT 0,
-      received INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (boutique_id) REFERENCES boutiques(id)
-    );
+-- Ajustements labo par boutique/produit pour la date
+CREATE TABLE IF NOT EXISTS lab_adjustments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  for_date TEXT NOT NULL,
+  boutique_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  adjusted_qty INTEGER NOT NULL,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(for_date, boutique_id, product_id),
+  FOREIGN KEY(boutique_id) REFERENCES boutiques(id),
+  FOREIGN KEY(product_id) REFERENCES products(id)
+);
 
-    CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      quantity INTEGER NOT NULL,
-      final_quantity INTEGER,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (product_id) REFERENCES products(id)
-    );
+-- Ventes réelles (pour suggestions)
+CREATE TABLE IF NOT EXISTS sales (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  boutique_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  sold_qty INTEGER NOT NULL,
+  sold_date TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
-    CREATE TABLE IF NOT EXISTS sales_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      boutique_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      sale_date TEXT NOT NULL,
-      quantity INTEGER NOT NULL,
-      FOREIGN KEY (boutique_id) REFERENCES boutiques(id),
-      FOREIGN KEY (product_id) REFERENCES products(id)
-    );
+-- Tournées (simple regroupement)
+CREATE TABLE IF NOT EXISTS tours (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL
+);
 
-    CREATE TABLE IF NOT EXISTS production_plans (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      delivery_date TEXT NOT NULL,
-      product_id INTEGER NOT NULL,
-      final_quantity INTEGER NOT NULL,
-      FOREIGN KEY (product_id) REFERENCES products(id)
-    );
-  `);
+CREATE TABLE IF NOT EXISTS tour_stops (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tour_id INTEGER NOT NULL,
+  boutique_id INTEGER NOT NULL,
+  stop_order INTEGER NOT NULL,
+  FOREIGN KEY(tour_id) REFERENCES tours(id),
+  FOREIGN KEY(boutique_id) REFERENCES boutiques(id)
+);
+`);
 
-  // Ajout de colonne boutique_id si base historique
-  try {
-    const cols = db.prepare('PRAGMA table_info(users)').all();
-    if (!cols.some(c => c.name === 'boutique_id')) {
-      db.exec('ALTER TABLE users ADD COLUMN boutique_id INTEGER REFERENCES boutiques(id)');
-      console.log('ℹ️ Ajout de users.boutique_id');
-    }
-  } catch (err) {
-    console.error('Vérification users.boutique_id', err);
-  }
-
-  seedDefaults(db); // -> crée catégories/produits/boutiques/users si absents
-  console.log('✅ Tables initialisées (seed exécuté)');
-}
-
-module.exports = { db, init };
+module.exports = db;

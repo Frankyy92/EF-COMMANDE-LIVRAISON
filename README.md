@@ -65,30 +65,3 @@ docker compose up --build
 
 ## 📄 Licence
 MIT
-
-
-## ☁️ Déployer sur Render (gratuit / simple)
-1. Crée un compte sur render.com
-2. "New +" → "Web Service" → Connecte ton dépôt GitHub
-3. Build Command: `npm install && node seed.js`
-4. Start Command: `npm start`
-5. Environment:
-   - `SESSION_SECRET` = une chaîne longue et unique
-   - `TZ` = `Europe/Paris`
-
-## 🐙 Pousser sur GitHub (pas à pas)
-```bash
-git init
-git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/<ton_compte>/<ton_repo>.git
-git push -u origin main
-```
-
-## 🐳 Docker (prod rapide)
-```bash
-docker compose up --build -d
-# App: http://localhost:3000
-# Volume data: ./data (persistance)
-```
