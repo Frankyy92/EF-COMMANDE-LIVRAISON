@@ -62,12 +62,18 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <% order.items.forEach(item => { %>
-                    <tr class="row">
-                      <td><%= item.name %></td>
-                      <td style="text-align:right"><%= item.final_quantity %></td>
+                  <% /* Afficher les produits regroupés par catégorie */ %>
+                  <% Object.keys(order.itemsByCategory).forEach(function(cat) { %>
+                    <tr class="category-header-row">
+                      <td colspan="2"><%= cat %></td>
                     </tr>
-                  <% }) %>
+                    <% order.itemsByCategory[cat].forEach(function(item) { %>
+                      <tr class="row">
+                        <td><%= item.name %></td>
+                        <td style="text-align:right"><%= item.final_quantity %></td>
+                      </tr>
+                    <% }); %>
+                  <% }); %>
                 </tbody>
               </table>
             </div>

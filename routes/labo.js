@@ -178,15 +178,30 @@ router.get('/recap/:date?', (req, res) => {
     .all(deliveryDate);
   // Pour chaque commande, récupérer les items avec quantités finales et calculer le statut
   const recap = orders.map((order) => {
-    const items = db
+    // Récupérer les items pour cette commande avec leurs catégories afin de regrouper l'affichage
+    const rowsItems = db
       .prepare(
-        `SELECT p.name, oi.quantity, COALESCE(oi.final_quantity, oi.quantity) AS final_quantity
+        `SELECT p.name, c.name AS category_name, oi.quantity, COALESCE(oi.final_quantity, oi.quantity) AS final_quantity
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id
-         WHERE oi.order_id = ?`
+         JOIN categories c ON p.category_id = c.id
+         WHERE oi.order_id = ?
+         ORDER BY c.name, p.name`
       )
       .all(order.id);
-    return { ...order, items, statusLabel: getOrderStatus(order) };
+    // Organiser les articles par catégorie
+    const itemsByCategory = {};
+    rowsItems.forEach((row) => {
+      if (!itemsByCategory[row.category_name]) {
+        itemsByCategory[row.category_name] = [];
+      }
+      itemsByCategory[row.category_name].push({
+        name: row.name,
+        quantity: row.quantity,
+        final_quantity: row.final_quantity
+      });
+    });
+    return { ...order, itemsByCategory, statusLabel: getOrderStatus(order) };
   });
   res.render('labo/recap', { date: deliveryDate, recap, dates });
 });

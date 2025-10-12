@@ -12,56 +12,108 @@
     <%- include('../partials/side_nav') %>
     <main class="main-content">
       <div class="container">
-        <h1>Consolidation des commandes pour le <%= deliveryDate %></h1>
-    <% if (locked) { %>
-      <p><strong>Les commandes sont verrouillées.</strong></p>
-      <p>
-        <a href="/labo/production/<%= deliveryDate %>.pdf" class="button">Télécharger le plan de production</a>
-        <a href="/labo/delivery/<%= deliveryDate %>.pdf" class="button">Télécharger le plan de livraison</a>
-      </p>
-    <% } else { %>
-      <p>Vous pouvez ajuster les quantités finales par produit puis verrouiller pour générer les plans.</p>
-    <% } %>
-    <form action="/labo/consolidation/<%= deliveryDate %>/lock" method="post">
-      <% Object.keys(categoriesMap).forEach(function(catId) { %>
-        <% const cat = categoriesMap[catId]; %>
-        <h2><%= cat.name %></h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Produit</th>
-              <% boutiques.forEach(function(b) { %>
-                <th><%= b.name %></th>
+        <!-- Panneau pour la consolidation -->
+        <div class="consol-panel">
+          <h1>Consolidation des commandes pour le <%= deliveryDate %></h1>
+          <% if (locked) { %>
+            <p><strong>Les commandes sont verrouillées.</strong></p>
+            <p>
+              <a href="/labo/production/<%= deliveryDate %>.pdf" class="btn secondary">Télécharger le plan de production</a>
+              <a href="/labo/delivery/<%= deliveryDate %>.pdf" class="btn secondary">Télécharger le plan de livraison</a>
+            </p>
+          <% } else { %>
+            <p>Vous pouvez ajuster les quantités finales par produit puis verrouiller pour générer les plans.</p>
+          <% } %>
+          <!-- Barre de recherche et onglets de catégories -->
+          <div class="toolbar" style="margin-bottom:14px; align-items:center;">
+            <input type="text" id="consolSearch" placeholder="Rechercher un produit…" style="flex:1; max-width:260px;" />
+            <div class="category-tabs">
+              <% Object.keys(categoriesMap).forEach(function(catId, idx) { %>
+                <% const cat = categoriesMap[catId]; %>
+                <span class="category-tab <%= idx === 0 ? 'active' : '' %>" data-cat="<%= catId %>"><%= cat.name %></span>
               <% }); %>
-              <th>Total</th>
-              <th>Qté finale</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% cat.products.forEach(function(p) { %>
-              <tr>
-                <td><%= p.name %></td>
-                <% boutiques.forEach(function(b) { %>
-                  <td><%= orderData[b.id][p.id] || 0 %></td>
-                <% }); %>
-                <td><%= totals[p.id] || 0 %></td>
-                <td>
-                  <% if (!locked) { %>
-                    <input type="number" name="finalQty_<%= p.id %>" min="0" value="<%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>">
-                  <% } else { %>
-                    <%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>
-                  <% } %>
-                </td>
-              </tr>
+            </div>
+          </div>
+          <form action="/labo/consolidation/<%= deliveryDate %>/lock" method="post">
+            <% Object.keys(categoriesMap).forEach(function(catId, idx) { %>
+              <% const cat = categoriesMap[catId]; %>
+              <div class="category-section" data-cat="<%= catId %>" style="<%= idx === 0 ? '' : 'display:none' %>">
+                <h2><%= cat.name %></h2>
+                <table class="table consol-table">
+                  <thead>
+                    <tr>
+                      <th class="product-col">Produit</th>
+                      <% boutiques.forEach(function(b) { %>
+                        <th class="boutique-col"><%= b.name %></th>
+                      <% }); %>
+                      <th class="total-col">Total</th>
+                      <th class="final-col">Qté finale</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% cat.products.forEach(function(p) { %>
+                      <tr class="prod-row row" data-name="<%= p.name.toLowerCase() %>">
+                        <td class="product-cell"><%= p.name %></td>
+                        <% boutiques.forEach(function(b) { %>
+                          <td class="num-cell"><%= orderData[b.id][p.id] || 0 %></td>
+                        <% }); %>
+                        <td class="num-cell"><%= totals[p.id] || 0 %></td>
+                        <td class="num-cell">
+                          <% if (!locked) { %>
+                            <input type="number" name="finalQty_<%= p.id %>" min="0" value="<%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>" style="width:80px; text-align:center;">
+                          <% } else { %>
+                            <%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
             <% }); %>
-          </tbody>
-        </table>
-      <% }); %>
-      <% if (!locked) { %>
-        <button type="submit" class="button">Verrouiller et générer les plans</button>
-      <% } %>
-    </form>
+            <% if (!locked) { %>
+              <button type="submit" class="btn ok">Verrouiller et générer les plans</button>
+            <% } %>
+          </form>
+        </div>
       </div>
+    <script>
+      // Script pour filtrer les sections par catégorie
+      document.querySelectorAll('.category-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          // retirer active
+          document.querySelectorAll('.category-tab').forEach(function(t) { t.classList.remove('active'); });
+          // ajouter active à l'onglet cliqué
+          this.classList.add('active');
+          var catId = this.dataset.cat;
+          // masquer toutes les sections
+          document.querySelectorAll('.category-section').forEach(function(sec) {
+            sec.style.display = 'none';
+          });
+          // afficher la section correspondante
+          document.querySelectorAll('.category-section').forEach(function(sec) {
+            if (sec.dataset.cat === catId) {
+              sec.style.display = '';
+            }
+          });
+        });
+      });
+      // Filtre de recherche pour les produits
+      (function() {
+        var searchInput = document.getElementById('consolSearch');
+        if (searchInput) {
+          searchInput.addEventListener('input', function() {
+            var q = this.value.toLowerCase();
+            document.querySelectorAll('.category-section').forEach(function(sec) {
+              sec.querySelectorAll('tbody tr.prod-row').forEach(function(row) {
+                var name = row.dataset.name || '';
+                row.style.display = (!q || name.includes(q)) ? '' : 'none';
+              });
+            });
+          });
+        }
+      })();
+    </script>
     </main>
   </div>
 </body>

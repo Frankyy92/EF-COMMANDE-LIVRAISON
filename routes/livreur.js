@@ -66,7 +66,8 @@ router.get('/pdf/:date', (req, res) => {
         `SELECT p.name, COALESCE(oi.final_quantity, oi.quantity) AS qty
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id
-         WHERE oi.order_id = ?`
+         WHERE oi.order_id = ?
+         ORDER BY p.name`
       )
       .all(order.id);
     return { boutique_name: order.boutique_name, items };
@@ -76,16 +77,25 @@ router.get('/pdf/:date', (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="livraisons_${date}.pdf"`);
   doc.pipe(res);
-  // En-tête
+  // En-tête avec bandeau coloré
   doc.rect(0, 0, 612, 50).fill('#5A3E36');
   doc.fill('#FFFFFF').fontSize(16).text(`Récapitulatif des livraisons – ${date}`, 30, 15);
   doc.moveDown();
+  if (recap.length === 0) {
+    // Afficher un message si aucune commande verrouillée
+    doc.fill('#000000').fontSize(12).text('Aucune commande verrouillée pour cette date.', { align: 'left' });
+    doc.end();
+    return;
+  }
   // Contenu par boutique
   recap.forEach((order, index) => {
-    doc.fill('#000000').fontSize(14).text(order.boutique_name, { underline: true });
+    doc.fill('#5A3E36').fontSize(14).text(order.boutique_name, { underline: true });
     doc.moveDown(0.3);
     order.items.forEach((it) => {
-      doc.fontSize(12).text(`${it.name}`, { continued: true }).text(` ${it.qty}`, { align: 'right' });
+      // Produit et quantité alignés sur la même ligne
+      doc.fill('#000000').fontSize(12);
+      doc.text(`${it.name}`, { continued: true });
+      doc.text(`${it.qty}`, { align: 'right' });
     });
     if (index < recap.length - 1) {
       doc.moveDown();
