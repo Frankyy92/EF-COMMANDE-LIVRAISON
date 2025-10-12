@@ -1,73 +1,68 @@
 /* ============================================================
  * Common utilities for the bakery frontend.
  * - Centralise l'URL de l'API (API_BASE)
- * - Appels fetch avec l'ID utilisateur si présent
+ * - Appels fetch robustes (JSON optionnel, corps vide OK)
  * - Gestion session & helpers UI
  * ============================================================ */
 
 const API_BASE = 'https://orderflow-pro-f7lb.onrender.com'; // <= TON backend Render
 
-// Compose une URL absolue vers l'API
+// Compose l'URL absolue de l'API
 function apiUrl(path) {
   if (!path) return API_BASE;
   return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-// Récupère l'utilisateur courant depuis le localStorage
+// Utilisateur courant
 function getUser() {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
     return user || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
-// Appel générique à l'API (JSON par défaut)
+// Lit la réponse en JSON SANS planter si vide / non-JSON
+async function safeParse(res) {
+  // Réponse sans corps ?
+  const len = res.headers.get('Content-Length');
+  if (res.status === 204 || len === '0') return null;
+
+  const ct = (res.headers.get('Content-Type') || '').toLowerCase();
+  const txt = await res.text(); // lis le flux une seule fois
+  if (!txt) return null;        // corps vide → null
+
+  if (ct.includes('application/json')) {
+    try { return JSON.parse(txt); } catch { return null; }
+  }
+  // Pas du JSON → retourne le texte brut
+  return txt;
+}
+
+// Appel générique (gère erreurs et JSON optionnel)
 async function apiRequest(path, method = 'GET', body = null) {
   const user = getUser();
-
-  const headers = {
-    'Content-Type': 'application/json'
-  };
-  // Le backend lise X-User-Id pour savoir "qui" agit (pas de mot de passe)
-  if (user && user.id) {
-    headers['X-User-Id'] = user.id;
-  }
+  const headers = { 'Content-Type': 'application/json' };
+  if (user && user.id) headers['X-User-Id'] = user.id;
 
   const options = { method, headers };
-  if (body !== null && body !== undefined) {
-    options.body = JSON.stringify(body);
-  }
+  if (body !== null && body !== undefined) options.body = JSON.stringify(body);
 
-  // IMPORTANT : on appelle TOUJOURS l'URL absolue de l'API
   const url = apiUrl(path);
 
-  try {
-    const res = await fetch(url, options);
-
-    // CORS / preflight
-    if (res.status === 204) return null;
-
-    if (!res.ok) {
-      // Essaie de lire l'erreur JSON renvoyée par l'API
-      let errMsg = `HTTP ${res.status}`;
-      try {
-        const data = await res.json();
-        errMsg = data.error || errMsg;
-      } catch (_) {}
-      throw new Error(errMsg);
-    }
-
-    const contentType = res.headers.get('Content-Type') || '';
-    if (contentType.includes('application/json')) {
-      return await res.json();
-    }
-    return await res.text();
-  } catch (err) {
-    // Remonte une erreur lisible dans l'UI
-    throw new Error(err.message || 'Erreur réseau');
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    // Essaye de lire une erreur JSON/texte sans planter si vide
+    let detail = '';
+    try {
+      const parsed = await safeParse(res);
+      detail = typeof parsed === 'string' ? parsed : (parsed && parsed.error) || '';
+    } catch {}
+    const msg = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`;
+    throw new Error(msg);
   }
+  return await safeParse(res);
 }
 
 // Déconnexion
@@ -91,19 +86,14 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Demain en YYYY-MM-DD
+// Demain YYYY-MM-DD
 function getTomorrow() {
   const t = new Date();
   t.setDate(t.getDate() + 1);
   return formatDate(t);
 }
 
-// Petit “health check” pour diagnostiquer vite si le front joint le back
+// Ping optionnel (debug)
 async function pingBackend() {
-  try {
-    const txt = await apiRequest('/api/health'); // si non présent, ignore simplement
-    return txt;
-  } catch (_) {
-    return null;
-  }
+  try { return await apiRequest('/api/health'); } catch { return null; }
 }
