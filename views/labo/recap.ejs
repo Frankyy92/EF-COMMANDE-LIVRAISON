@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Récapitulatif des commandes – <%= date %> – Labo</title>
+  <link rel="stylesheet" href="/public/css/style.css" />
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+        <div class="panel">
+          <h1>Récapitulatif des commandes – <%= date %></h1>
+          <p>Sélectionnez une date pour voir les commandes consolidées de toutes les boutiques. Les quantités finales sont affichées si elles ont été saisies.</p>
+          <form action="/labo/recap" method="get" class="toolbar" style="margin-bottom: 20px;">
+            <label for="dateSelect">Date :</label>
+            <select name="date" id="dateSelect" onchange="this.form.submit()">
+              <% dates.forEach(d => { %>
+                <option value="<%= d %>" <%= d === date ? 'selected' : '' %>><%= d %></option>
+              <% }) %>
+            </select>
+          </form>
+
+          <% if (recap.length === 0) { %>
+            <p>Aucune commande pour cette date.</p>
+          <% } %>
+          <% recap.forEach(order => { %>
+            <% /* Déterminer la classe de statut pour le badge */ %>
+            <% let statusClass;
+               if (order.statusLabel === 'Non traité') {
+                 statusClass = 'status-non-traite';
+               } else if (order.statusLabel === 'En cours') {
+                 statusClass = 'status-en-cours';
+               } else if (order.statusLabel === 'Terminé') {
+                 statusClass = 'status-termine';
+               } else if (order.statusLabel === 'Livré') {
+                 statusClass = 'status-livre';
+               } else {
+                 statusClass = '';
+               }
+            %>
+            <div class="panel" style="margin-bottom:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin-bottom:0"><%= order.boutique_name %></h2>
+                <span class="status-badge <%= statusClass %>"><%= order.statusLabel %></span>
+              </div>
+              <p style="margin-top:6px; font-size:14px; color:var(--muted);">
+                <strong>Verrouillée :</strong> <%= order.locked ? 'Oui' : 'Non' %>
+                &nbsp;|&nbsp;
+                <strong>Remise au livreur :</strong> <%= order.delivered ? 'Oui' : 'Non' %>
+                &nbsp;|&nbsp;
+                <strong>Réception validée :</strong> <%= order.received ? 'Oui' : 'Non' %>
+              </p>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Produit</th>
+                    <th style="text-align:right">Qté finale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% order.items.forEach(item => { %>
+                    <tr class="row">
+                      <td><%= item.name %></td>
+                      <td style="text-align:right"><%= item.final_quantity %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

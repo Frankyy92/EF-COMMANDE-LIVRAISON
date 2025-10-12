@@ -1,22 +1,25 @@
 {
-  "name": "orderflow-project",
-  "version": "3.0.0",
-  "description": "Commande & Livraison - Multi-boutiques, catégories filtrables, admin édition",
+  "name": "orderflow-app",
+  "version": "1.0.0",
+  "description": "Internal order and delivery management for a chain of boutiques (pâtisserie/traiteur)",
   "main": "app.js",
-  "type": "commonjs",
   "scripts": {
-    "start": "node app.js"
-  },
-  "engines": {
-    "node": ">=18"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "csv-parse": "^5.5.6",
-    "ejs": "^3.1.10",
-    "express": "^4.19.2",
-    "express-ejs-layouts": "^2.5.1",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^8.2.0",
+    "ejs": "^3.1.8",
+    "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.1"
+    "pdfkit": "^0.13.0",
+    "dotenv": "^16.3.1"
+    ,
+    "dayjs": "^1.11.9"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }

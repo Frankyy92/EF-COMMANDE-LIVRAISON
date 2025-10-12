@@ -1,41 +1,46 @@
-<div class="card"><h2>Produits</h2>
-<form method="post" action="/admin/products/add" style="margin-bottom:12px">
-  <label>Nom</label><input class="input" name="name" required>
-  <label>Catégorie</label>
-  <select class="input" name="categoryId" required>
-    <% categories.forEach(c=>{ %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
-  </select>
-  <button class="btn primary" style="margin-top:8px">Ajouter</button>
-</form>
-<table><thead><tr><th>Nom</th><th>Catégorie</th><th>ID</th><th>Actions</th></tr></thead><tbody>
-<% products.forEach(p=>{ %>
-  <tr>
-    <td><%= p.name %></td>
-    <td><%= categoriesMap[p.categoryId]?categoriesMap[p.categoryId].name:'—' %></td>
-    <td><%= p.id %></td>
-    <td>
-      <form method="post" action="/admin/products/edit" style="display:inline">
-        <input type="hidden" name="id" value="<%= p.id %>">
-        <button class="icon-btn" title="Modifier"><img class="icon" src="/icons/pencil.svg" alt="edit"></button>
-      </form>
-      <form method="post" action="/admin/products/delete" style="display:inline">
-        <input type="hidden" name="id" value="<%= p.id %>">
-        <button class="btn small">Supprimer</button>
-      </form>
-    </td>
-  </tr>
-<% }) %>
-</tbody></table></div>
-
-<% if(editing){ %>
-<div class="card"><h3>Modifier produit</h3>
-<form method="post" action="/admin/products/update">
-  <input type="hidden" name="id" value="<%= editing.id %>">
-  <label>Nom</label><input class="input" name="name" value="<%= editing.name %>" required>
-  <label>Catégorie</label>
-  <select class="input" name="categoryId" required>
-    <% categories.forEach(c=>{ %><option value="<%= c.id %>" <%= editing.categoryId===c.id?'selected':'' %>><%= c.name %></option><% }) %>
-  </select>
-  <button class="btn primary" style="margin-top:8px">Enregistrer</button>
-</form></div>
-<% } %>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produits - Admin - Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+    <h1>Produits</h1>
+    <a href="/admin/products/new" class="button">Nouveau produit</a>
+    <table>
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Catégorie</th>
+          <th>Crus</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% products.forEach(function(p) { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td><%= p.category_name %></td>
+            <td><%= p.is_crude ? 'Oui' : 'Non' %></td>
+            <td>
+              <a href="/admin/products/<%= p.id %>/edit" class="button">Éditer</a>
+              <form action="/admin/products/<%= p.id %>/delete" method="post" style="display:inline-block" onsubmit="return confirm('Supprimer ce produit ?')">
+                <button type="submit" class="button">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

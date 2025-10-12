@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catégories - Admin - Orderflow</title>
+  <title>Boutiques - Admin - Orderflow</title>
   <link rel="stylesheet" href="/public/css/style.css">
 </head>
 <body>
@@ -12,8 +12,8 @@
     <%- include('../partials/side_nav') %>
     <main class="main-content">
       <div class="container">
-    <h1>Catégories</h1>
-    <a href="/admin/categories/new" class="button">Nouvelle catégorie</a>
+    <h1>Boutiques</h1>
+    <a href="/admin/boutiques/new" class="button">Nouvelle boutique</a>
     <table>
       <thead>
         <tr>
@@ -22,12 +22,12 @@
         </tr>
       </thead>
       <tbody>
-        <% categories.forEach(function(cat) { %>
+        <% boutiques.forEach(function(b) { %>
           <tr>
-            <td><%= cat.name %></td>
+            <td><%= b.name %></td>
             <td>
-              <a href="/admin/categories/<%= cat.id %>/edit" class="button">Éditer</a>
-              <form action="/admin/categories/<%= cat.id %>/delete" method="post" style="display:inline-block" onsubmit="return confirm('Supprimer cette catégorie ?')">
+              <a href="/admin/boutiques/<%= b.id %>/edit" class="button">Éditer</a>
+              <form action="/admin/boutiques/<%= b.id %>/delete" method="post" style="display:inline-block" onsubmit="return confirm('Supprimer cette boutique ?')">
                 <button type="submit" class="button">Supprimer</button>
               </form>
             </td>

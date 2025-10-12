@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consolidation des commandes - <%= deliveryDate %> - Labo - Orderflow</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <div class="layout">
+    <%- include('../partials/side_nav') %>
+    <main class="main-content">
+      <div class="container">
+        <h1>Consolidation des commandes pour le <%= deliveryDate %></h1>
+    <% if (locked) { %>
+      <p><strong>Les commandes sont verrouillées.</strong></p>
+      <p>
+        <a href="/labo/production/<%= deliveryDate %>.pdf" class="button">Télécharger le plan de production</a>
+        <a href="/labo/delivery/<%= deliveryDate %>.pdf" class="button">Télécharger le plan de livraison</a>
+      </p>
+    <% } else { %>
+      <p>Vous pouvez ajuster les quantités finales par produit puis verrouiller pour générer les plans.</p>
+    <% } %>
+    <form action="/labo/consolidation/<%= deliveryDate %>/lock" method="post">
+      <% Object.keys(categoriesMap).forEach(function(catId) { %>
+        <% const cat = categoriesMap[catId]; %>
+        <h2><%= cat.name %></h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <% boutiques.forEach(function(b) { %>
+                <th><%= b.name %></th>
+              <% }); %>
+              <th>Total</th>
+              <th>Qté finale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% cat.products.forEach(function(p) { %>
+              <tr>
+                <td><%= p.name %></td>
+                <% boutiques.forEach(function(b) { %>
+                  <td><%= orderData[b.id][p.id] || 0 %></td>
+                <% }); %>
+                <td><%= totals[p.id] || 0 %></td>
+                <td>
+                  <% if (!locked) { %>
+                    <input type="number" name="finalQty_<%= p.id %>" min="0" value="<%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>">
+                  <% } else { %>
+                    <%= typeof finalQuantities[p.id] !== 'undefined' ? finalQuantities[p.id] : (totals[p.id] || 0) %>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% }); %>
+      <% if (!locked) { %>
+        <button type="submit" class="button">Verrouiller et générer les plans</button>
+      <% } %>
+    </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
