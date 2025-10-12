@@ -1,0 +1,11 @@
+    <div class="card">
+      <h2>Import CSV — Matrice livraison</h2>
+      <p>Colonnes attendues : <code>date,boutique,categorie,produit,prix,quantite</code></p>
+      <form method="post" action="/admin/import" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".csv" required>
+        <button class="btn primary" style="margin-top:8px;">Importer</button>
+      </form>
+      <p style="margin-top:8px;">Exemple :</p>
+      <pre>2025-10-09,neuilly,Boulangerie,Baguette,1.2,10
+2025-10-09,stgermain,Pâtisserie,Pain au chocolat,1.1,12</pre>
+    </div>

@@ -1,4 +1,22 @@
 {
+  "shops": [
+    {
+      "id": "neuilly",
+      "name": "EF Neuilly"
+    },
+    {
+      "id": "stgermain",
+      "name": "Saint-Germain-en-Laye"
+    },
+    {
+      "id": "suresnes",
+      "name": "À Deux Mains - Suresnes"
+    },
+    {
+      "id": "rueil",
+      "name": "Rueil"
+    }
+  ],
   "categories": [
     {
       "id": "cat-boulangerie",
@@ -33,18 +51,5 @@
       "categoryId": "cat-boissons"
     }
   ],
-  "orders": [
-    {
-      "id": "ord-demo-1",
-      "client": "Démo Boutique",
-      "items": [
-        {
-          "productId": "prd-baguette",
-          "qty": 2
-        }
-      ],
-      "status": "non-traite",
-      "createdAt": "2025-10-12T10:00:00Z"
-    }
-  ]
+  "orders": []
 }

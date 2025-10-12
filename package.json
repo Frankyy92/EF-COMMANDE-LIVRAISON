@@ -1,7 +1,7 @@
 {
   "name": "orderflow-project",
-  "version": "1.0.0",
-  "description": "Commande & Livraison - Express + EJS (responsive, rôles, admin avec mot de passe)",
+  "version": "2.0.0",
+  "description": "Commande & Livraison - Express + EJS (multi-boutiques, labo, livreur)",
   "main": "app.js",
   "type": "commonjs",
   "scripts": {
@@ -15,7 +15,8 @@
     "express": "^4.19.2",
     "express-ejs-layouts": "^2.5.1",
     "express-session": "^1.17.3",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "multer": "^1.4.5-lts.1",
+    "csv-parse": "^5.5.6"
   }
 }
-

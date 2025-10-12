@@ -1,37 +1,39 @@
 <div class="card">
-  <h2>Livraisons</h2>
-  <p>Vue simplifiée des commandes à livrer.</p>
-  <table>
-    <thead><tr><th>ID</th><th>Client</th><th>Articles</th><th>Statut</th><th>Actions</th></tr></thead>
-    <tbody>
-    <% orders.forEach(o => { %>
-      <tr>
-        <td><%= o.id %></td>
-        <td><%= o.client %></td>
-        <td>
-          <% o.items.forEach(it => { %>
-            <div><%= productsMap[it.productId].name %> × <%= it.qty %></div>
-          <% }) %>
-        </td>
-        <td>
-          <% if(o.status === 'non-traite'){ %>
-            <span class="status pending">Non traité</span>
-          <% } else { %>
-            <span class="status done">Validé</span>
-          <% } %>
-        </td>
-        <td>
-          <% if(o.status === 'non-traite'){ %>
-            <form method="post" action="/livreur/valider">
-              <input type="hidden" name="id" value="<%= o.id %>">
-              <button class="btn success small" type="submit">Marquer livré</button>
-            </form>
-          <% } else { %>
-            <em>Aucune action</em>
-          <% } %>
-        </td>
-      </tr>
-    <% }) %>
-    </tbody>
-  </table>
+  <h2>Livreur — Tournée</h2>
+  <form method="get">
+    <label>Date</label>
+    <input type="date" name="d" value="<%= date %>">
+    <button class="btn" type="submit" style="margin-top:8px;">Filtrer</button>
+  </form>
 </div>
+<% Object.keys(byShop).forEach(shopId => { const shop = shopsMap[shopId]; %>
+  <div class="card">
+    <h3><%= shop ? shop.name : shopId %></h3>
+    <table>
+      <thead><tr><th>Commande</th><th>Articles</th><th>Statut</th><th>Action</th></tr></thead>
+      <tbody>
+        <% byShop[shopId].forEach(o => { %>
+          <tr>
+            <td><%= o.id %></td>
+            <td>
+              <% o.items.forEach(it => { %>
+                <div><%= productsMap[it.productId].name %> × <%= it.qty %></div>
+              <% }) %>
+            </td>
+            <td><span class="status <%= o.status==='non-traite'?'pending':'done' %>"><%= o.status==='non-traite'?'Non traité':'Validé' %></span></td>
+            <td>
+              <% if(o.status==='non-traite'){ %>
+                <form method="post" action="/livreur/valider">
+                  <input type="hidden" name="id" value="<%= o.id %>">
+                  <button class="btn success small">Marquer livré</button>
+                </form>
+              <% } else { %>
+                <em>OK</em>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% }) %>

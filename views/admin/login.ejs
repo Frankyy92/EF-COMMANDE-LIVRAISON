@@ -1,11 +1,9 @@
 <div class="card">
   <h2>Connexion Admin</h2>
-  <% if (err) { %>
-    <p style="color:#b91c1c; font-weight:600;">Accès refusé : <%= err %></p>
-  <% } %>
+  <% if (err) { %><p style="color:#b91c1c; font-weight:600;">Accès refusé : <%= err %></p><% } %>
   <form method="post" action="/adminLogin">
     <label>Mot de passe</label>
-    <input type="password" name="password" required placeholder="Entrez le mot de passe admin">
+    <input type="password" name="password" required>
     <div style="margin-top:12px;"></div>
     <button class="btn primary" type="submit">Se connecter</button>
   </form>

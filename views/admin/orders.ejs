@@ -1,34 +1,33 @@
 <div class="card">
   <h2>Commandes</h2>
+  <form method="get">
+    <label>Date</label>
+    <input type="date" name="d" value="<%= date %>">
+    <button class="btn" style="margin-top:8px;">Filtrer</button>
+  </form>
   <table>
-    <thead><tr><th>ID</th><th>Client</th><th>Articles</th><th>Statut</th><th>Actions</th></tr></thead>
+    <thead><tr><th>ID</th><th>Boutique</th><th>Articles</th><th>Statut</th><th>Actions</th></tr></thead>
     <tbody>
       <% orders.forEach(o => { %>
         <tr>
           <td><%= o.id %></td>
-          <td><%= o.client %></td>
+          <td><%= shopsMap[o.shopId] ? shopsMap[o.shopId].name : o.shopId %></td>
           <td>
             <% o.items.forEach(it => { %>
               <div><%= productsMap[it.productId].name %> × <%= it.qty %></div>
             <% }) %>
           </td>
+          <td><span class="status <%= o.status==='non-traite'?'pending':'done' %>"><%= o.status==='non-traite'?'Non traité':'Validé' %></span></td>
           <td>
-            <% if(o.status === 'non-traite'){ %>
-              <span class="status pending">Non traité</span>
-            <% } else { %>
-              <span class="status done">Validé</span>
-            <% } %>
-          </td>
-          <td>
-            <% if(o.status === 'non-traite'){ %>
+            <% if(o.status==='non-traite'){ %>
               <form method="post" action="/admin/orders/valider" style="display:inline;">
                 <input type="hidden" name="id" value="<%= o.id %>">
-                <button class="btn success small" type="submit">Valider</button>
+                <button class="btn success small">Valider</button>
               </form>
             <% } %>
             <form method="post" action="/admin/orders/delete" style="display:inline;">
               <input type="hidden" name="id" value="<%= o.id %>">
-              <button class="btn small" type="submit">Supprimer</button>
+              <button class="btn small">Supprimer</button>
             </form>
           </td>
         </tr>
