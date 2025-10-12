@@ -85,7 +85,7 @@
         payload.boutique_name = boutiqueName;
       }
       try {
-        const res = await fetch('/api/login', {
+        const res = await apiRequest('…'/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
