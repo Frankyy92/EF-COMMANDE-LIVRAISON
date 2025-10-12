@@ -1,68 +1,77 @@
-// app.js
-// Charge .env si présent (facultatif en prod)
-try { require('dotenv').config(); } catch (_) {}
-
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const { db, init } = require('./db');
 
-// Compat si certains appels font encore init()
-if (typeof init === 'function') init();
+// Initialise la base de données
+init();
 
 const app = express();
 
-// Vues EJS
+// Configuration de la vue
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Body parser
+// Middleware pour parser les corps de requêtes
 app.use(express.urlencoded({ extended: false }));
 
-// Sessions
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'devsecret',
-  resave: false,
-  saveUninitialized: false
-}));
+// Gestion des sessions
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'devsecret',
+    resave: false,
+    saveUninitialized: false
+  })
+);
 
-// Exposer l'utilisateur aux vues
+// Expose l'utilisateur connecté à toutes les vues
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   next();
 });
 
-// Static
+// Fichiers statiques (CSS, images...)
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
-// Middlewares d’accès
+// Middleware d'authentification
 function ensureAuthenticated(req, res, next) {
-  if (req.session && req.session.user) return next();
-  return res.redirect('/login');
+  if (req.session && req.session.user) {
+    return next();
+  }
+  res.redirect('/login');
 }
+
 function ensureRole(role) {
-  return (req, res, next) => {
-    if (req.session && req.session.user && req.session.user.role === role) return next();
-    return res.status(403).send('Accès refusé');
+  return function (req, res, next) {
+    if (req.session && req.session.user && req.session.user.role === role) {
+      return next();
+    }
+    // Rediriger en cas de rôle invalide
+    res.status(403).send('Accès refusé');
   };
 }
 
-// Routes
+// Importation des routes
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const laboRoutes = require('./routes/labo');
 const boutiqueRoutes = require('./routes/boutique');
 const livreurRoutes = require('./routes/livreur');
 
+// Routes
 app.use('/', authRoutes);
 app.use('/admin', ensureAuthenticated, ensureRole('admin'), adminRoutes);
 app.use('/labo', ensureAuthenticated, ensureRole('labo'), laboRoutes);
 app.use('/boutique', ensureAuthenticated, ensureRole('boutique'), boutiqueRoutes);
+// Routes pour le livreur (livraisons)
 app.use('/livreur', ensureAuthenticated, ensureRole('livreur'), livreurRoutes);
 
-// Accueil: redirige selon le rôle
+// Accueil : rediriger selon le rôle
 app.get('/', (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  if (!req.session.user) {
+    return res.redirect('/login');
+  }
   const role = req.session.user.role;
   if (role === 'admin') return res.redirect('/admin');
   if (role === 'labo') return res.redirect('/labo');
@@ -71,8 +80,7 @@ app.get('/', (req, res) => {
   return res.send('Rôle non reconnu');
 });
 
-// ---- LANCEMENT ----
-// ⚠️ Déclare PORT UNE SEULE FOIS
+// Démarrer le serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Orderflow app listening on port ${PORT}`);

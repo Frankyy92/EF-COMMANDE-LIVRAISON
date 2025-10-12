@@ -28,32 +28,9 @@
             <p>Aucune commande pour cette date.</p>
           <% } %>
           <% recap.forEach(order => { %>
-            <% /* Déterminer la classe de statut pour le badge */ %>
-            <% let statusClass;
-               if (order.statusLabel === 'Non traité') {
-                 statusClass = 'status-non-traite';
-               } else if (order.statusLabel === 'En cours') {
-                 statusClass = 'status-en-cours';
-               } else if (order.statusLabel === 'Terminé') {
-                 statusClass = 'status-termine';
-               } else if (order.statusLabel === 'Livré') {
-                 statusClass = 'status-livre';
-               } else {
-                 statusClass = '';
-               }
-            %>
             <div class="panel" style="margin-bottom:20px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin-bottom:0"><%= order.boutique_name %></h2>
-                <span class="status-badge <%= statusClass %>"><%= order.statusLabel %></span>
-              </div>
-              <p style="margin-top:6px; font-size:14px; color:var(--muted);">
-                <strong>Verrouillée :</strong> <%= order.locked ? 'Oui' : 'Non' %>
-                &nbsp;|&nbsp;
-                <strong>Remise au livreur :</strong> <%= order.delivered ? 'Oui' : 'Non' %>
-                &nbsp;|&nbsp;
-                <strong>Réception validée :</strong> <%= order.received ? 'Oui' : 'Non' %>
-              </p>
+              <h2 style="margin-bottom:0"><%= order.boutique_name %></h2>
+              <p style="margin-top:4px;"><strong>Statut :</strong> <%= order.statusLabel %> &nbsp;|&nbsp; <strong>Verrouillée :</strong> <%= order.locked ? 'Oui' : 'Non' %> &nbsp;|&nbsp; <strong>Remise au livreur :</strong> <%= order.delivered ? 'Oui' : 'Non' %> &nbsp;|&nbsp; <strong>Réception validée :</strong> <%= order.received ? 'Oui' : 'Non' %></p>
               <table class="table">
                 <thead>
                   <tr>
@@ -62,18 +39,12 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <% /* Afficher les produits regroupés par catégorie */ %>
-                  <% Object.keys(order.itemsByCategory).forEach(function(cat) { %>
-                    <tr class="category-header-row">
-                      <td colspan="2"><%= cat %></td>
+                  <% order.items.forEach(item => { %>
+                    <tr class="row">
+                      <td><%= item.name %></td>
+                      <td style="text-align:right"><%= item.final_quantity %></td>
                     </tr>
-                    <% order.itemsByCategory[cat].forEach(function(item) { %>
-                      <tr class="row">
-                        <td><%= item.name %></td>
-                        <td style="text-align:right"><%= item.final_quantity %></td>
-                      </tr>
-                    <% }); %>
-                  <% }); %>
+                  <% }) %>
                 </tbody>
               </table>
             </div>

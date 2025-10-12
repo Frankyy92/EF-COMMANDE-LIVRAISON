@@ -27,31 +27,25 @@
         </thead>
         <tbody>
           <% orders.forEach(order => { %>
-            <% /* Déterminer le statut lisible et la classe associée */
-               let statusLabel;
-               let statusClass;
+            <% /* Déterminer le statut lisible */
+               let status;
                if (!order.locked) {
-                 statusLabel = 'Non traité';
-                 statusClass = 'status-non-traite';
+                 status = 'Non traité';
                } else if (order.locked && !order.delivered) {
-                 statusLabel = 'En cours';
-                 statusClass = 'status-en-cours';
+                 status = 'En cours';
                } else if (order.delivered && !order.received) {
-                 statusLabel = 'Terminé';
-                 statusClass = 'status-termine';
+                 status = 'Terminé';
                } else if (order.received) {
-                 statusLabel = 'Livré';
-                 statusClass = 'status-livre';
+                 status = 'Livré';
                } else {
-                 statusLabel = 'Indéfini';
-                 statusClass = '';
+                 status = 'Indéfini';
                }
             %>
             <tr class="row">
               <td><%= order.delivery_date %></td>
               <td><%= order.boutique_name %></td>
               <td style="text-align:right"><%= order.totalItems %></td>
-              <td><span class="status-badge <%= statusClass %>"><%= statusLabel %></span></td>
+              <td><%= status %></td>
               <td><a class="btn ghost" href="/labo/recap/<%= order.delivery_date %>">Voir détail</a></td>
             </tr>
           <% }); %>

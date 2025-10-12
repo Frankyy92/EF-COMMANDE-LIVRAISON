@@ -1,10 +1,5 @@
 const express = require('express');
-// Utilitaire simple pour obtenir une date ISO (YYYY-MM-DD) pour demain
-function getTomorrowISO(baseDate) {
-  const d = baseDate ? new Date(baseDate) : new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-}
+const dayjs = require('dayjs');
 const { db } = require('../db');
 
 const router = express.Router();
@@ -18,7 +13,7 @@ const PDFDocument = require('pdfkit');
 router.get('/', (req, res) => {
   // Récupérer la date passée en query ou prendre demain par défaut
   const queryDate = req.query.date;
-  const date = queryDate || getTomorrowISO();
+  const date = queryDate || dayjs().add(1, 'day').format('YYYY-MM-DD');
   // Récupérer toutes les commandes verrouillées pour cette date
   const orders = db
     .prepare(
@@ -66,8 +61,7 @@ router.get('/pdf/:date', (req, res) => {
         `SELECT p.name, COALESCE(oi.final_quantity, oi.quantity) AS qty
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id
-         WHERE oi.order_id = ?
-         ORDER BY p.name`
+         WHERE oi.order_id = ?`
       )
       .all(order.id);
     return { boutique_name: order.boutique_name, items };
@@ -77,25 +71,16 @@ router.get('/pdf/:date', (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="livraisons_${date}.pdf"`);
   doc.pipe(res);
-  // En-tête avec bandeau coloré
+  // En-tête
   doc.rect(0, 0, 612, 50).fill('#5A3E36');
   doc.fill('#FFFFFF').fontSize(16).text(`Récapitulatif des livraisons – ${date}`, 30, 15);
   doc.moveDown();
-  if (recap.length === 0) {
-    // Afficher un message si aucune commande verrouillée
-    doc.fill('#000000').fontSize(12).text('Aucune commande verrouillée pour cette date.', { align: 'left' });
-    doc.end();
-    return;
-  }
   // Contenu par boutique
   recap.forEach((order, index) => {
-    doc.fill('#5A3E36').fontSize(14).text(order.boutique_name, { underline: true });
+    doc.fill('#000000').fontSize(14).text(order.boutique_name, { underline: true });
     doc.moveDown(0.3);
     order.items.forEach((it) => {
-      // Produit et quantité alignés sur la même ligne
-      doc.fill('#000000').fontSize(12);
-      doc.text(`${it.name}`, { continued: true });
-      doc.text(`${it.qty}`, { align: 'right' });
+      doc.fontSize(12).text(`${it.name}`, { continued: true }).text(` ${it.qty}`, { align: 'right' });
     });
     if (index < recap.length - 1) {
       doc.moveDown();
@@ -112,7 +97,7 @@ router.post('/deliver/:id', (req, res) => {
   const id = req.params.id;
   db.prepare('UPDATE orders SET delivered = 1 WHERE id = ?').run(id);
   // Retourner à la page avec même date
-  const backDate = req.body.date || getTomorrowISO();
+  const backDate = req.body.date || dayjs().add(1, 'day').format('YYYY-MM-DD');
   res.redirect('/livreur?date=' + backDate);
 });
 

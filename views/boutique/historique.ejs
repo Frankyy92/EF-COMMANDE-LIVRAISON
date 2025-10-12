@@ -26,30 +26,24 @@
             </thead>
             <tbody>
               <% orders.forEach(function(order) { %>
-                <% /* Déterminer le statut lisible et la classe associée selon les indicateurs locked/delivered/received */
-                   let statusLabel;
-                   let statusClass;
+                <% /* Déterminer le statut lisible selon les indicateurs locked/delivered/received */
+                   let status;
                    if (!order.locked) {
-                     statusLabel = 'Non traité';
-                     statusClass = 'status-non-traite';
+                     status = 'Non traité';
                    } else if (order.locked && !order.delivered) {
-                     statusLabel = 'En cours';
-                     statusClass = 'status-en-cours';
+                     status = 'En cours';
                    } else if (order.delivered && !order.received) {
-                     statusLabel = 'Terminé';
-                     statusClass = 'status-termine';
+                     status = 'Terminé';
                    } else if (order.received) {
-                     statusLabel = 'Livré';
-                     statusClass = 'status-livre';
+                     status = 'Livré';
                    } else {
-                     statusLabel = 'Indéfini';
-                     statusClass = '';
+                     status = 'Indéfini';
                    }
                 %>
                 <tr class="row">
                   <td><%= order.delivery_date %></td>
                   <td style="text-align:right"><%= order.totalItems %></td>
-                  <td><span class="status-badge <%= statusClass %>"><%= statusLabel %></span></td>
+                  <td><%= status %></td>
                   <td>
                     <% if (!order.locked) { %>
                       <a class="btn ghost" href="/boutique/order/<%= order.delivery_date %>">Modifier</a>

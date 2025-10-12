@@ -3,12 +3,7 @@ const PDFDocument = require('pdfkit');
 const { db } = require('../db');
 
 const router = express.Router();
-// Utilitaire simple pour calculer la date de demain au format YYYY-MM-DD sans dépendance externe
-function getTomorrowISO(baseDate) {
-  const d = baseDate ? new Date(baseDate) : new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-}
+const dayjs = require('dayjs');
 
 // Utilitaire pour formater une date en ISO (YYYY-MM-DD)
 function formatDateISO(date) {
@@ -139,7 +134,7 @@ router.post('/consolidation/:date/lock', (req, res) => {
 
 // Redirection vers la page récapitulatif (par défaut date de demain)
 router.get('/recap', (req, res) => {
-  const tomorrow = getTomorrowISO();
+  const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
   return res.redirect(`/labo/recap/${tomorrow}`);
 });
 
@@ -163,7 +158,7 @@ function getOrderStatus(order) {
 // Page récapitulatif des commandes pour une date donnée. On utilise également cette route pour la page sans paramètre en lisant query ?date
 router.get('/recap/:date?', (req, res) => {
   // Si aucun paramètre date n'est fourni (ou query), prendre la date dans les paramètres ou par défaut demain
-  const deliveryDate = req.params.date || req.query.date || getTomorrowISO();
+  const deliveryDate = req.params.date || req.query.date || dayjs().add(1, 'day').format('YYYY-MM-DD');
   // Obtenir toutes les dates existantes pour lesquelles des commandes ont été créées, pour le menu déroulant
   const dates = db.prepare('SELECT DISTINCT delivery_date FROM orders ORDER BY delivery_date DESC').all().map(r => r.delivery_date);
   // Récupérer toutes les commandes pour cette date (même non verrouillées)
@@ -178,30 +173,15 @@ router.get('/recap/:date?', (req, res) => {
     .all(deliveryDate);
   // Pour chaque commande, récupérer les items avec quantités finales et calculer le statut
   const recap = orders.map((order) => {
-    // Récupérer les items pour cette commande avec leurs catégories afin de regrouper l'affichage
-    const rowsItems = db
+    const items = db
       .prepare(
-        `SELECT p.name, c.name AS category_name, oi.quantity, COALESCE(oi.final_quantity, oi.quantity) AS final_quantity
+        `SELECT p.name, oi.quantity, COALESCE(oi.final_quantity, oi.quantity) AS final_quantity
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id
-         JOIN categories c ON p.category_id = c.id
-         WHERE oi.order_id = ?
-         ORDER BY c.name, p.name`
+         WHERE oi.order_id = ?`
       )
       .all(order.id);
-    // Organiser les articles par catégorie
-    const itemsByCategory = {};
-    rowsItems.forEach((row) => {
-      if (!itemsByCategory[row.category_name]) {
-        itemsByCategory[row.category_name] = [];
-      }
-      itemsByCategory[row.category_name].push({
-        name: row.name,
-        quantity: row.quantity,
-        final_quantity: row.final_quantity
-      });
-    });
-    return { ...order, itemsByCategory, statusLabel: getOrderStatus(order) };
+    return { ...order, items, statusLabel: getOrderStatus(order) };
   });
   res.render('labo/recap', { date: deliveryDate, recap, dates });
 });
