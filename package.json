@@ -4,9 +4,9 @@
   "description": "Internal order and delivery management for a chain of boutiques (pâtisserie/traiteur)",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "seed": "node scripts/seed.js"
+  "start": "bash ./start.sh",
+  "dev": "nodemon app.js",
+  "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
