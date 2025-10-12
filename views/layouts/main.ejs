@@ -1,7 +1,0 @@
-<!doctype html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= title || 'Orderflow' %></title>
-<link rel="stylesheet" href="/css/style.css"></head><body>
-<header class="topbar"><div class="brand">Orderflow</div><div><%= roleLabel||'' %></div><button class="icon-btn" aria-label="Menu" data-burger>☰</button></header>
-<div class="page"><% if(typeof showSidebar==='undefined' || showSidebar){ %><aside class="sidenav"><%- include('../partials/side_nav',{role}) %></aside><% } %><main class="content"><%- body %></main></div>
-<script src="/js/mobile-nav.js"></script></body></html>
