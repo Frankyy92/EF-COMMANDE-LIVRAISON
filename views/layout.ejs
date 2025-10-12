@@ -1,20 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>OrderFlow Labo</title>
-  <link rel="stylesheet" href="/styles.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= typeof title !== 'undefined' ? title : 'Dashboard' %></title>
+  <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>OrderFlow Labo</h1>
-    <form method="post" action="/logout">
+    <h1>Elio &amp; Franck</h1>
+    <form method="post" action="/logout" style="margin-left:auto">
       <button type="submit">Se déconnecter</button>
     </form>
   </header>
+
   <main class="container">
     <%- body %>
   </main>
+
+  <footer class="footer">
+    <small>&copy; <%= new Date().getFullYear() %> — E&F</small>
+  </footer>
 </body>
 </html>

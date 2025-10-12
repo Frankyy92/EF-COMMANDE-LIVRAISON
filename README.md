@@ -1,85 +1,22 @@
-# OrderFlow Labo (Boutiques ↔️ Labo)
+# Orderflow - Ready for Render
 
-Application interne pour gérer les commandes des boutiques vers le laboratoire, la consolidation, le plan de production et la tournée de livraison.
+- Login **par email seul** si `SIMPLE_LOGIN=true`
+- SQLite persistant via **Persistent Disk** (`DB_PATH`)
+- Moteur **ejs-mate** pour `layout('layout')`
 
-## ⚙️ Fonctionnalités
-- Authentification par rôles : **admin**, **labo**, **boutique**
-- Gestion des produits (admin)
-- Commande J+1 par boutique (avec **suggestion** basée sur l'historique de ventes du même jour de semaine)
-- **Verrouillage** automatique des commandes à **21:00 Europe/Paris**
-- Consolidation labo avec **ajustements** par boutique et par produit
-- Génération du **Plan de production** et du **Plan de livraison**
-- Export CSV (production, livraisons)
-- **SQLite** pour la persistance (`data/app.db`)
-- Docker prêt
+## Variables Render
+- `DB_PATH=/opt/render/project/src/data/app.db`
+- `SIMPLE_LOGIN=true`
+- `SESSION_SECRET=<longue_chaine>`
+- `ALLOWED_USERS=admin@example.com,labo@example.com,stgermain@example.com,suresnes@example.com,rueil@example.com,neuilly@example.com`
+- `TZ=Europe/Paris`
 
-## 🚀 Démarrage rapide
-```bash
-# 1) Cloner puis installer
-npm install
+## Build/Start (Render)
+- Build: `npm install --no-audit --no-fund && mkdir -p /opt/render/project/src/data && node seed.js`
+- Start: `npm start`
 
-# 2) Copier l'exemple d'env
-cp .env.example .env
-
-# 3) Initialiser la base + données de démo (produits, boutiques, comptes)
-node seed.js
-
-# 4) Lancer en dev
-npm run dev
-# ou en prod
-npm start
-```
-
-- URL par défaut : http://localhost:3000
-- Comptes de démo :
-  - admin: **admin@example.com** / **admin123**
-  - labo: **labo@example.com** / **labo123**
-  - boutique A: **boutiqueA@example.com** / **boutique123**
-  - boutique B: **boutiqueB@example.com** / **boutique123**
-
-## ⏰ Logique de cut-off (21:00)
-- Avant 21:00: les boutiques peuvent créer/modifier leurs **commandes J+1**
-- À partir de 21:00: les commandes sont **gelées** côté boutique ; le **labo** peut faire des **ajustements** de consolidation
-- Le fuseau configurable est **Europe/Paris** (voir `config.js`)
-
-## 🧠 Suggestion de quantités
-Sur la page de commande boutique, une suggestion par produit est calculée comme la **moyenne des quantités vendues** sur les **14 derniers jours** correspondant au **même jour de semaine**. À défaut d'historique, la suggestion est 0.
-
-## 📦 Exports
-- Production plan (CSV)
-- Delivery plan (CSV)
-
-## 🧪 Stack
-- Node.js + Express
-- EJS (SSR)
-- SQLite (better-sqlite3)
-- bcrypt + express-session
-
-## 🔒 Persistance
-Tout est dans `data/app.db`. Sauvegardez ce fichier pour conserver les données.
-
-## 🐳 Docker
-```bash
-docker compose up --build
-```
-
-## 📄 Licence
-MIT
-
-
-## Déploiement Render (le plus simple)
-
-**Sans Docker** (recommandé) :
-- Build Command : `npm ci`
-- Start Command : `npm start`
-- Variables d'environnement :
-  - `SESSION_SECRET` = une longue chaîne aléatoire
-  - `SIMPLE_LOGIN` = `true` pour autoriser la connexion par email seul
-  - `ALLOWED_USERS` = `labo@example.com,boutique@example.com,admin@example.com`
-  - `DB_PATH` = `/opt/render/project/src/data/app.db`
-  - `TZ` = `Europe/Paris`
-
-**Disque persistant** :
-- Ajoute un Persistent Disk et monte-le sur `/opt/render/project/src/data`
-- Les données SQLite seront conservées entre déploiements.
+## Routes
+- `/admin` (admin@example.com)
+- `/labo` (labo@example.com)
+- `/boutique` (stgermain/suresnes/rueil/neuilly @example.com)
 

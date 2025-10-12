@@ -1,4 +1,3 @@
-
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -8,22 +7,25 @@ const bcrypt = require('bcrypt');
 const db = require('./db');
 const { port, sessionSecret, simpleLogin, allowedUsers } = require('./config');
 
+const engine = require('ejs-mate');
 const app = express();
+
+app.engine('ejs', engine);
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 app.use(helmet());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
-app.set('view engine', 'ejs');
 
-// Sessions
 app.use(session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
 }));
 
-// Helpers
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
@@ -35,7 +37,6 @@ function requireRole(role) {
   };
 }
 
-// Root redirect by role
 app.get('/', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   const role = req.session.user.role;
@@ -44,19 +45,16 @@ app.get('/', (req, res) => {
   return res.redirect('/boutique');
 });
 
-// Login form
 app.get('/login', (req, res) => {
   if (req.session.user) return res.redirect('/');
   res.render('login', { error: null, simpleLogin });
 });
 
-// Login submit
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
   if (simpleLogin) {
-    // If ALLOWED_USERS is set, restrict to that list; otherwise any existing user in DB can log in with just email
     if (allowedUsers.length > 0 && !allowedUsers.includes(email)) {
       return res.status(401).render('login', { error: "Accès refusé pour cet email.", simpleLogin });
     }
@@ -67,23 +65,19 @@ app.post('/login', (req, res) => {
     return res.redirect('/');
   }
 
-  // Default: check password
   if (!user) return res.status(401).render('login', { error: "Identifiants invalides.", simpleLogin });
-  const ok = bcrypt.compareSync(password || "", user.password_hash);
+  const ok = bcrypt.compareSync(password || "", user.password_hash || "");
   if (!ok) return res.status(401).render('login', { error: "Identifiants invalides.", simpleLogin });
   req.session.user = { id: user.id, email: user.email, role: user.role, name: user.name };
   res.redirect('/');
 });
 
-// Logout
 app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/login')); });
 
-// Sub-routers
 app.use('/admin', requireAuth, requireRole('admin'), require('./routes/admin'));
 app.use('/labo', requireAuth, requireRole('labo'), require('./routes/labo'));
 app.use('/boutique', requireAuth, requireRole('boutique'), require('./routes/boutiques'));
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).send('Erreur serveur');
