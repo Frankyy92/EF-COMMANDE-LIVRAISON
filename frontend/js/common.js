@@ -5,12 +5,28 @@
  * - Gestion session & helpers UI
  * ============================================================ */
 
-const API_BASE = 'https://orderflow-pro-f7lb.onrender.com'; // <= TON backend Render
+const API_BASE = (() => {
+  if (typeof window !== 'undefined') {
+    if (window.API_BASE) {
+      return String(window.API_BASE).replace(/\/$/, '');
+    }
+    const { origin, protocol, host } = window.location || {};
+    if (origin && origin.startsWith('http')) {
+      return origin.replace(/\/$/, '');
+    }
+    if (protocol && host && protocol.startsWith('http')) {
+      return `${protocol}//${host}`.replace(/\/$/, '');
+    }
+  }
+  return 'http://localhost:5000';
+})();
 
 // Compose l'URL absolue de l'API
 function apiUrl(path) {
-  if (!path) return API_BASE;
-  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+  const base = API_BASE || '';
+  if (!path) return base;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${suffix}`;
 }
 
 // Utilisateur courant
