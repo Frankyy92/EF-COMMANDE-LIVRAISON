@@ -182,7 +182,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def handle_login(self, conn):
         data = self.parse_json_body()
-        username = data.get('username')
+        # Accept "identifier" as an alias for backward compatibility with older frontends
+        username = data.get('username') or data.get('identifier')
         role = data.get('role')
         boutique_name = data.get('boutique_name')
         if not username or not role:
