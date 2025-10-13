@@ -19,7 +19,11 @@
   </div>
   <div class="nav-backdrop" onclick="closeNav()" aria-hidden="true"></div>
   <div class="main">
-    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div class="topbar">
+      <button type="button" class="hamburger" onclick="toggleNav()" aria-label="Ouvrir le menu">☰</button>
+      <span class="menu-label">Menu</span>
+      <button type="button" class="logout-top" onclick="logout()">Déconnexion</button>
+    </div>
     <div id="content"></div>
   </div>
   <script src="js/common.js"></script>

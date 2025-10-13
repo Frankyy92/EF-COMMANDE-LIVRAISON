@@ -136,6 +136,10 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+function getToday() {
+  return formatDate(new Date());
+}
+
 // Demain YYYY-MM-DD
 function getTomorrow() {
   const t = new Date();

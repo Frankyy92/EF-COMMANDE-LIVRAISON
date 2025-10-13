@@ -18,7 +18,11 @@
   </div>
   <div class="nav-backdrop" onclick="closeNav()" aria-hidden="true"></div>
   <div class="main">
-    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div class="topbar">
+      <button type="button" class="hamburger" onclick="toggleNav()" aria-label="Ouvrir le menu">☰</button>
+      <span class="menu-label">Menu</span>
+      <button type="button" class="logout-top" onclick="logout()">Déconnexion</button>
+    </div>
     <div id="content"></div>
   </div>
   <script src="js/common.js"></script>
@@ -30,6 +34,13 @@
         return;
       }
       const content = document.getElementById('content');
+      const escapeHtml = (str = '') => String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
       document.getElementById('navOrder').addEventListener('click', (e) => {
         e.preventDefault();
         loadOrderPage();
@@ -38,155 +49,236 @@
         e.preventDefault();
         loadHistory();
       });
+
+      const renderQtyControl = (productId, value = 0) => {
+        const safeValue = Number.isFinite(value) ? value : parseInt(value, 10) || 0;
+        return `
+          <div class="qty-control" data-product="${productId}">
+            <button type="button" class="qty-btn minus" aria-label="Diminuer">&minus;</button>
+            <input type="number" class="qty-input" inputmode="numeric" min="0" value="${safeValue}">
+            <button type="button" class="qty-btn plus" aria-label="Augmenter">+</button>
+          </div>
+        `;
+      };
+
+      const attachQtyListeners = (scope, quantities) => {
+        scope.querySelectorAll('.qty-control').forEach(control => {
+          const productId = parseInt(control.getAttribute('data-product'), 10);
+          const input = control.querySelector('.qty-input');
+          const minus = control.querySelector('.qty-btn.minus');
+          const plus = control.querySelector('.qty-btn.plus');
+          const commit = (val) => {
+            const cleaned = Math.max(0, Number.isFinite(val) ? val : (parseInt(val, 10) || 0));
+            input.value = cleaned;
+            if (cleaned > 0) {
+              quantities[productId] = cleaned;
+            } else {
+              delete quantities[productId];
+            }
+          };
+          minus.addEventListener('click', () => {
+            const current = parseInt(input.value, 10) || 0;
+            commit(current - 1);
+          });
+          plus.addEventListener('click', () => {
+            const current = parseInt(input.value, 10) || 0;
+            commit(current + 1);
+          });
+          input.addEventListener('input', () => {
+            const current = parseInt(input.value, 10);
+            commit(Number.isNaN(current) ? 0 : current);
+          });
+        });
+      };
+
       async function loadOrderPage() {
         try {
-          const categories = await apiRequest('/api/categories');
-          // fetch all products grouped by category
-          const productsByCat = {};
-          for (const cat of categories) {
-            const prods = await apiRequest(`/api/products?category_id=${cat.id}`);
-            productsByCat[cat.name] = prods;
+          const [categories, products] = await Promise.all([
+            apiRequest('/api/categories'),
+            apiRequest('/api/products')
+          ]);
+          if (!categories.length || !products.length) {
+            content.innerHTML = '<p>Aucune catégorie ou produit disponible pour le moment.</p>';
+            return;
           }
-          // Build HTML
-          let html = '<h1>Nouvelle commande</h1>';
+
+          const categoriesById = new Map(categories.map(cat => [cat.id, cat]));
+          const productsByCategory = new Map();
+          categories.forEach(cat => {
+            productsByCategory.set(cat.id, []);
+          });
+          products.forEach(prod => {
+            if (!productsByCategory.has(prod.category_id)) {
+              productsByCategory.set(prod.category_id, []);
+            }
+            productsByCategory.get(prod.category_id).push(prod);
+          });
+          const allProducts = products.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+          let activeCategoryId = categories[0].id;
+          const quantities = {};
+
+          let html = '<div class="header"><h1>Nouvelle commande</h1></div>';
           html += '<div class="search-bar"><input type="text" id="searchInput" placeholder="Rechercher un produit..."></div>';
+          html += '<div id="searchResults" class="search-results hidden"></div>';
           html += '<div class="tabs" id="tabs">';
           categories.forEach((cat, idx) => {
-            html += `<div class="tab${idx === 0 ? ' active' : ''}" data-cat="${cat.name}">${cat.name}</div>`;
+            html += `<div class="tab${idx === 0 ? ' active' : ''}" data-cat="${cat.id}">${escapeHtml(cat.name)}</div>`;
           });
           html += '</div>';
           html += '<div class="tab-content" id="tabContent"></div>';
-          // Date picker and submit button
-          html += '<div style="margin-top:20px;">';
-          html += '<label for="orderDate">Date de livraison : </label>';
+          html += '<div style="margin-top:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">';
+          html += '<label for="orderDate">Date de livraison :</label>';
           html += `<input type="date" id="orderDate" value="${getTomorrow()}">`;
-          html += '<button id="submitOrder" style="margin-left:15px;">Valider la commande</button>';
+          html += '<button id="submitOrder">Valider la commande</button>';
           html += '</div>';
           content.innerHTML = html;
-          // Variables to store quantities
-          const quantities = {};
-          // Render products for a given category
-          function renderCategory(catName) {
-            const list = productsByCat[catName] || [];
+
+          const tabsEl = document.getElementById('tabs');
+          const tabContent = document.getElementById('tabContent');
+          const searchResults = document.getElementById('searchResults');
+          const searchInput = document.getElementById('searchInput');
+
+          const renderProductTable = (list) => {
+            if (!list.length) {
+              return '<p>Aucun produit dans cette catégorie.</p>';
+            }
             let table = '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
-            list.forEach(p => {
-              const key = p.id;
-              const val = quantities[key] || '';
-              table += `<tr><td>${p.name}</td><td><input type="number" min="0" data-id="${p.id}" value="${val}" class="qtyInput"></td></tr>`;
+            list.forEach(prod => {
+              const current = quantities[prod.id] ?? 0;
+              table += `<tr><td>${escapeHtml(prod.name)}</td><td>${renderQtyControl(prod.id, current)}</td></tr>`;
             });
             table += '</tbody></table>';
-            document.getElementById('tabContent').innerHTML = table;
-            // attach listeners
-            document.querySelectorAll('.qtyInput').forEach(input => {
-              input.addEventListener('input', () => {
-                const id = parseInt(input.getAttribute('data-id'));
-                const val = parseInt(input.value) || 0;
-                if (val > 0) {
-                  quantities[id] = val;
-                } else {
-                  delete quantities[id];
-                }
-              });
-            });
-          }
-          // initial render
-          renderCategory(categories[0].name);
-          // Tab switching
-          document.querySelectorAll('.tab').forEach(tab => {
+            return table;
+          };
+
+          const renderCategory = (categoryId) => {
+            activeCategoryId = categoryId;
+            const list = (productsByCategory.get(categoryId) || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+            tabContent.innerHTML = renderProductTable(list);
+            attachQtyListeners(tabContent, quantities);
+          };
+
+          const updateSearchResults = (term) => {
+            const cleaned = term.trim().toLowerCase();
+            if (!cleaned) {
+              searchResults.classList.add('hidden');
+              tabsEl.classList.remove('hidden');
+              tabContent.classList.remove('hidden');
+              renderCategory(activeCategoryId);
+              return;
+            }
+            const matches = allProducts.filter(prod => prod.name.toLowerCase().includes(cleaned));
+            if (!matches.length) {
+              searchResults.innerHTML = '<div class="search-result"><div class="search-result-info"><strong>Aucun produit trouvé</strong></div></div>';
+            } else {
+              searchResults.innerHTML = matches.map(prod => {
+                const catName = categoriesById.get(prod.category_id)?.name || '';
+                const current = quantities[prod.id] ?? 0;
+                return `
+                  <div class="search-result" data-product="${prod.id}">
+                    <div class="search-result-info">
+                      <strong>${escapeHtml(prod.name)}</strong>
+                      <span>${escapeHtml(catName)}</span>
+                    </div>
+                    ${renderQtyControl(prod.id, current)}
+                  </div>
+                `;
+              }).join('');
+            }
+            tabsEl.classList.add('hidden');
+            tabContent.classList.add('hidden');
+            searchResults.classList.remove('hidden');
+            attachQtyListeners(searchResults, quantities);
+          };
+
+          renderCategory(activeCategoryId);
+
+          tabsEl.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-              document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+              tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
               tab.classList.add('active');
-              renderCategory(tab.getAttribute('data-cat'));
-              // reset search input
-              document.getElementById('searchInput').value = '';
+              searchInput.value = '';
+              searchResults.classList.add('hidden');
+              tabContent.classList.remove('hidden');
+              tabsEl.classList.remove('hidden');
+              renderCategory(parseInt(tab.getAttribute('data-cat'), 10));
             });
           });
-          // Search filtering
-          document.getElementById('searchInput').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const currentCat = document.querySelector('.tab.active').getAttribute('data-cat');
-            const list = productsByCat[currentCat] || [];
-            let table = '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
-            list.filter(p => p.name.toLowerCase().includes(term)).forEach(p => {
-              const key = p.id;
-              const val = quantities[key] || '';
-              table += `<tr><td>${p.name}</td><td><input type="number" min="0" data-id="${p.id}" value="${val}" class="qtyInput"></td></tr>`;
-            });
-            table += '</tbody></table>';
-            document.getElementById('tabContent').innerHTML = table;
-            document.querySelectorAll('.qtyInput').forEach(input => {
-              input.addEventListener('input', () => {
-                const id = parseInt(input.getAttribute('data-id'));
-                const val = parseInt(input.value) || 0;
-                if (val > 0) {
-                  quantities[id] = val;
-                } else {
-                  delete quantities[id];
-                }
-              });
-            });
+
+          searchInput.addEventListener('input', (event) => {
+            updateSearchResults(event.target.value);
           });
-          // Submit order
+
           document.getElementById('submitOrder').addEventListener('click', async () => {
             const date = document.getElementById('orderDate').value;
             if (!date) {
               alert('Veuillez choisir une date');
               return;
             }
-            const items = Object.entries(quantities).map(([product_id, quantity]) => ({ product_id: parseInt(product_id), quantity }));
-            if (items.length === 0) {
+            const items = Object.entries(quantities)
+              .map(([product_id, quantity]) => ({ product_id: parseInt(product_id, 10), quantity: parseInt(quantity, 10) || 0 }))
+              .filter(item => item.quantity > 0);
+            if (!items.length) {
               alert('Veuillez saisir au moins une quantité');
               return;
             }
             try {
               await apiRequest('/api/orders', 'POST', { date, items });
               alert('Commande enregistrée');
-              // reset quantities and reload page
               loadOrderPage();
             } catch (err) {
               alert(err.message);
             }
           });
         } catch (err) {
-          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+          content.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
         }
       }
 
       async function loadHistory() {
         try {
           const orders = await apiRequest('/api/orders');
-          let html = '<h1>Historique des commandes</h1>';
-          if (orders.length === 0) {
+          let html = '<div class="header"><h1>Historique des commandes</h1></div>';
+          if (!orders.length) {
             html += '<p>Aucune commande enregistrée.</p>';
-          } else {
-            html += '<table><thead><tr><th>Date</th><th>Statut</th><th>Détails</th></tr></thead><tbody>';
-            orders.forEach(o => {
-              html += `<tr><td>${o.date}</td><td>${o.status}</td><td><button data-id="${o.id}" class="viewOrder">Voir</button></td></tr>`;
-            });
-            html += '</tbody></table>';
-            html += '<div id="orderDetails"></div>';
+            content.innerHTML = html;
+            return;
           }
+          html += '<table><thead><tr><th>Date</th><th>Statut</th><th>Détails</th></tr></thead><tbody>';
+          orders.forEach(order => {
+            html += `<tr><td>${escapeHtml(order.date)}</td><td>${escapeHtml(order.status)}</td><td><button data-id="${order.id}" class="viewOrder">Voir</button></td></tr>`;
+          });
+          html += '</tbody></table>';
+          html += '<div id="orderDetails" class="details-panel hidden"></div>';
           content.innerHTML = html;
-          document.querySelectorAll('.viewOrder').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const id = btn.getAttribute('data-id');
-              // fetch specific order details via GET /api/orders?date & id not accessible; fetch list and filter
-              const order = orders.find(o => o.id == id);
-              let detailHtml = `<h3>Commande du ${order.date}</h3>`;
-              detailHtml += `<p>Statut: ${order.status}</p>`;
-              detailHtml += '<ul>';
-              order.items.forEach(item => {
-                detailHtml += `<li>Produit #${item.product_id} — quantité: ${item.quantity}</li>`;
-              });
-              detailHtml += '</ul>';
-              document.getElementById('orderDetails').innerHTML = detailHtml;
+
+          const detailBox = document.getElementById('orderDetails');
+          content.querySelectorAll('.viewOrder').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              const order = orders.find(o => o.id === id);
+              if (!order) return;
+              let detailHtml = `<h3>Commande du ${escapeHtml(order.date)}</h3>`;
+              detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
+              if (!order.items.length) {
+                detailHtml += '<p>Aucun produit.</p>';
+              } else {
+                detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+                order.items.forEach(item => {
+                  const productLabel = item.product_name ? escapeHtml(item.product_name) : `Produit #${item.product_id}`;
+                  detailHtml += `<tr><td>${productLabel}</td><td>${item.quantity}</td></tr>`;
+                });
+                detailHtml += '</tbody></table>';
+              }
+              detailBox.innerHTML = detailHtml;
+              detailBox.classList.remove('hidden');
             });
           });
         } catch (err) {
-          content.innerHTML = `<p>Erreur: ${err.message}</p>`;
+          content.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
         }
       }
-      // Default view
+
       loadOrderPage();
     })();
   </script>
