@@ -175,7 +175,8 @@ def setup_database():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
-    username = data.get('username')
+    # Accept legacy "identifier" field as an alias for username
+    username = data.get('username') or data.get('identifier')
     role = data.get('role')
     boutique_name = data.get('boutique_name')
     if not username or not role:
