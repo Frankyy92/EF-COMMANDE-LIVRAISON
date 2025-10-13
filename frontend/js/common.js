@@ -7,6 +7,21 @@
 
 const API_BASE = (() => {
   if (typeof window !== 'undefined') {
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      const override = params.get('api');
+      if (override) {
+        localStorage.setItem('apiBaseOverride', override);
+        window.API_BASE = override;
+      } else if (!window.API_BASE) {
+        const stored = localStorage.getItem('apiBaseOverride');
+        if (stored) {
+          window.API_BASE = stored;
+        }
+      }
+    } catch (err) {
+      // Ignore parsing/storage errors and fallback to defaults
+    }
     if (window.API_BASE) {
       return String(window.API_BASE).replace(/\/$/, '');
     }
@@ -23,9 +38,20 @@ const API_BASE = (() => {
 
 // Compose l'URL absolue de l'API
 function apiUrl(path) {
-  const base = API_BASE || '';
-  if (!path) return base;
+  if (!path) {
+    return API_BASE || '';
+  }
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
   const suffix = path.startsWith('/') ? path : `/${path}`;
+  const base = API_BASE || '';
+  if (!base) {
+    return suffix;
+  }
+  if (base.endsWith('/api') && suffix.startsWith('/api/')) {
+    return `${base.replace(/\/api$/, '')}${suffix}`;
+  }
   return `${base}${suffix}`;
 }
 
@@ -57,6 +83,16 @@ async function safeParse(res) {
 }
 
 // Appel générique (gère erreurs et JSON optionnel)
+async function buildErrorFromResponse(res) {
+  let detail = '';
+  try {
+    const parsed = await safeParse(res);
+    detail = typeof parsed === 'string' ? parsed : (parsed && parsed.error) || '';
+  } catch {}
+  const msg = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`;
+  return new Error(msg);
+}
+
 async function apiRequest(path, method = 'GET', body = null) {
   const user = getUser();
   const headers = { 'Content-Type': 'application/json' };
@@ -65,20 +101,44 @@ async function apiRequest(path, method = 'GET', body = null) {
   const options = { method, headers };
   if (body !== null && body !== undefined) options.body = JSON.stringify(body);
 
-  const url = apiUrl(path);
-
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    // Essaye de lire une erreur JSON/texte sans planter si vide
-    let detail = '';
-    try {
-      const parsed = await safeParse(res);
-      detail = typeof parsed === 'string' ? parsed : (parsed && parsed.error) || '';
-    } catch {}
-    const msg = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`;
-    throw new Error(msg);
+  const isAbsolute = /^https?:\/\//i.test(path);
+  const canonical = isAbsolute ? path : (path.startsWith('/') ? path : `/${path}`);
+  const attempts = [];
+  if (isAbsolute) {
+    attempts.push(canonical);
+  } else {
+    attempts.push(canonical);
+    if (canonical.startsWith('/api/') && !canonical.startsWith('/backend/')) {
+      attempts.push(`/backend${canonical}`);
+    }
   }
-  return await safeParse(res);
+
+  let lastError = null;
+  const tried = new Set();
+  for (const candidate of attempts) {
+    const url = isAbsolute ? candidate : apiUrl(candidate);
+    if (tried.has(url)) continue;
+    tried.add(url);
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) {
+        return await safeParse(res);
+      }
+      const error = await buildErrorFromResponse(res);
+      if (!isAbsolute && res.status === 404) {
+        lastError = error;
+        continue;
+      }
+      throw error;
+    } catch (err) {
+      lastError = err;
+      // Try next candidate if available
+    }
+  }
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error('Request failed');
 }
 
 // Déconnexion

@@ -138,6 +138,19 @@ def log_action(conn, user_id, action, details=None):
 class RequestHandler(BaseHTTPRequestHandler):
     server_version = "BakeryHTTP/0.1"
 
+    def _parse_path(self):
+        parsed = urlparse(self.path)
+        raw_path = parsed.path or '/'
+        if raw_path.startswith('/backend'):
+            stripped = raw_path[len('/backend'):]
+            if not stripped:
+                raw_path = '/'
+            else:
+                raw_path = stripped if stripped.startswith('/') else f'/{stripped}'
+        normalised = raw_path if raw_path == '/' else raw_path.rstrip('/')
+        path_parts = normalised.lstrip('/').split('/') if normalised != '/' else ['']
+        return parsed, raw_path, normalised, path_parts
+
     def _set_headers(self, status_code=200, content_type='application/json'):
         self.send_response(status_code)
         self.send_header('Content-Type', content_type)
@@ -560,18 +573,21 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(logs).encode())
 
     def do_GET(self):
-        parsed = urlparse(self.path)
-        path_parts = parsed.path.rstrip('/').split('/')
+        parsed, raw_path, normalised, path_parts = self._parse_path()
         # Connect to DB per request for thread safety
         conn = sqlite3.connect(DATABASE_PATH)
         conn.execute('PRAGMA foreign_keys = ON')
         user = self.get_user(conn)
         try:
-            if self.path == '/api/categories':
+            if normalised == '/api/health':
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'ok'}).encode())
+                return
+            if normalised == '/api/categories':
                 return self.list_categories(conn)
-            if self.path.startswith('/api/categories/'):
+            if normalised.startswith('/api/categories/'):
                 pass  # Not used for GET
-            if path_parts[1:2] == ['api'] and path_parts[2:3] == ['products']:
+            if path_parts[0:1] == ['api'] and path_parts[1:2] == ['products']:
                 # /api/products or /api/products?category_id=1
                 params = parse_qs(parsed.query)
                 cat_id = params.get('category_id', [None])[0]
@@ -581,18 +597,18 @@ class RequestHandler(BaseHTTPRequestHandler):
                     except ValueError:
                         cat_id = None
                 return self.list_products(conn, cat_id)
-            if self.path == '/api/boutiques':
+            if normalised == '/api/boutiques':
                 return self.list_boutiques(conn, user)
-            if self.path.startswith('/api/orders'):
+            if normalised.startswith('/api/orders'):
                 # /api/orders or /api/orders?date=YYYY-MM-DD
                 return self.list_or_create_orders(conn, user)
-            if self.path.startswith('/api/labo/aggregate'):
+            if normalised.startswith('/api/labo/aggregate'):
                 return self.aggregate(conn, user)
-            if self.path.startswith('/api/labo/delivery/'):
+            if normalised.startswith('/api/labo/delivery/'):
                 # /api/labo/delivery/<date>
                 date_str = path_parts[-1]
                 return self.delivery(conn, user, date_str)
-            if self.path == '/api/logs':
+            if normalised == '/api/logs':
                 return self.get_logs(conn, user)
             # default: 404
             self._set_headers(404)
@@ -601,24 +617,23 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.close()
 
     def do_POST(self):
-        parsed = urlparse(self.path)
-        path_parts = parsed.path.rstrip('/').split('/')
+        parsed, raw_path, normalised, path_parts = self._parse_path()
         conn = sqlite3.connect(DATABASE_PATH)
         conn.execute('PRAGMA foreign_keys = ON')
         user = self.get_user(conn)
         try:
-            if self.path == '/api/login':
+            if normalised == '/api/login':
                 return self.handle_login(conn)
-            if self.path == '/api/categories':
+            if normalised == '/api/categories':
                 return self.create_category(conn, user)
-            if self.path == '/api/products':
+            if normalised == '/api/products':
                 return self.create_product(conn, user)
-            if self.path == '/api/orders':
+            if normalised == '/api/orders':
                 return self.list_or_create_orders(conn, user)
             # finalize order
-            if len(path_parts) >= 5 and path_parts[1] == 'api' and path_parts[2] == 'orders' and path_parts[4] == 'finalize':
+            if len(path_parts) >= 4 and path_parts[0] == 'api' and path_parts[1] == 'orders' and path_parts[3] == 'finalize':
                 try:
-                    order_id = int(path_parts[3])
+                    order_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid order id'}).encode())
@@ -631,34 +646,33 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.close()
 
     def do_PUT(self):
-        parsed = urlparse(self.path)
-        path_parts = parsed.path.rstrip('/').split('/')
+        parsed, raw_path, normalised, path_parts = self._parse_path()
         conn = sqlite3.connect(DATABASE_PATH)
         conn.execute('PRAGMA foreign_keys = ON')
         user = self.get_user(conn)
         try:
             # /api/categories/<id>
-            if len(path_parts) >= 4 and path_parts[1] == 'api' and path_parts[2] == 'categories':
+            if len(path_parts) >= 3 and path_parts[0] == 'api' and path_parts[1] == 'categories':
                 try:
-                    cat_id = int(path_parts[3])
+                    cat_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid category id'}).encode())
                     return
                 return self.update_or_delete_category(conn, user, cat_id, 'PUT')
             # /api/products/<id>
-            if len(path_parts) >= 4 and path_parts[1] == 'api' and path_parts[2] == 'products':
+            if len(path_parts) >= 3 and path_parts[0] == 'api' and path_parts[1] == 'products':
                 try:
-                    prod_id = int(path_parts[3])
+                    prod_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid product id'}).encode())
                     return
                 return self.update_or_delete_product(conn, user, prod_id, 'PUT')
             # /api/orders/<id>
-            if len(path_parts) >= 4 and path_parts[1] == 'api' and path_parts[2] == 'orders':
+            if len(path_parts) >= 3 and path_parts[0] == 'api' and path_parts[1] == 'orders':
                 try:
-                    order_id = int(path_parts[3])
+                    order_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid order id'}).encode())
@@ -670,25 +684,24 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.close()
 
     def do_DELETE(self):
-        parsed = urlparse(self.path)
-        path_parts = parsed.path.rstrip('/').split('/')
+        parsed, raw_path, normalised, path_parts = self._parse_path()
         conn = sqlite3.connect(DATABASE_PATH)
         conn.execute('PRAGMA foreign_keys = ON')
         user = self.get_user(conn)
         try:
             # /api/categories/<id>
-            if len(path_parts) >= 4 and path_parts[1] == 'api' and path_parts[2] == 'categories':
+            if len(path_parts) >= 3 and path_parts[0] == 'api' and path_parts[1] == 'categories':
                 try:
-                    cat_id = int(path_parts[3])
+                    cat_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid category id'}).encode())
                     return
                 return self.update_or_delete_category(conn, user, cat_id, 'DELETE')
             # /api/products/<id>
-            if len(path_parts) >= 4 and path_parts[1] == 'api' and path_parts[2] == 'products':
+            if len(path_parts) >= 3 and path_parts[0] == 'api' and path_parts[1] == 'products':
                 try:
-                    prod_id = int(path_parts[3])
+                    prod_id = int(path_parts[2])
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid product id'}).encode())
