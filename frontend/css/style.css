@@ -16,14 +16,36 @@ body {
   left: 0;
   overflow-y: auto;
   transition: transform 0.3s ease-in-out;
+  z-index: 1000;
 }
 
-.nav h2 {
-  text-align: center;
-  margin: 0;
-  padding: 20px 0;
-  font-size: 1.2rem;
+.nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
   border-bottom: 1px solid #334155;
+}
+
+.nav-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.nav-close {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 1.6rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  display: none;
+}
+
+.nav-close:hover,
+.nav-close:focus {
+  color: #fff;
 }
 
 .nav a {
@@ -46,9 +68,74 @@ body {
   border-top: 1px solid #334155;
 }
 
+.nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 900;
+}
+
+.nav-backdrop.visible {
+  display: block;
+}
+
+body.no-scroll {
+  overflow: hidden;
+}
+
 .main {
   margin-left: 220px;
   padding: 20px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.hamburger {
+  background-color: #1e293b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.hamburger:active {
+  transform: scale(0.95);
+}
+
+.menu-label {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1.05rem;
+}
+
+.logout-top {
+  margin-left: auto;
+  background-color: #2563eb;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.logout-top:hover {
+  background-color: #1d4ed8;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .header {
@@ -139,6 +226,128 @@ button:hover {
   margin-right: 10px;
 }
 
+.search-results {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #fff;
+  padding: 8px 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.search-result:last-child {
+  border-bottom: none;
+}
+
+.search-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-result-info span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.qty-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.qty-control .qty-btn {
+  background: none;
+  color: #1e293b;
+  border: none;
+  width: 34px;
+  height: 34px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.qty-control .qty-btn:hover {
+  background-color: #e2e8f0;
+}
+
+.qty-control .qty-input {
+  width: 60px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 0.95rem;
+  padding: 0;
+  appearance: textfield;
+}
+
+.qty-control .qty-input::-webkit-outer-spin-button,
+.qty-control .qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.details-panel {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.details-panel h3 {
+  margin-top: 0;
+}
+
+.category-row td {
+  background-color: #e2e8f0;
+  font-weight: 600;
+}
+
+.consolidation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.icon-button {
+  padding: 8px 10px;
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.icon-button:hover {
+  background-color: #cbd5e1;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.subtle-text {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .nav {
@@ -149,19 +358,21 @@ button:hover {
   .nav.open {
     transform: translateX(0);
   }
+  .nav-close {
+    display: block;
+  }
   .main {
     margin-left: 0;
     padding: 15px;
   }
-  .hamburger {
-    display: block;
-    cursor: pointer;
-    padding: 10px;
+  .topbar {
+    margin-bottom: 16px;
   }
-}
-
-@media (min-width: 769px) {
   .hamburger {
-    display: none;
+    width: 40px;
+    height: 40px;
+  }
+  .logout-top {
+    padding: 8px 16px;
   }
 }

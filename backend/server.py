@@ -182,7 +182,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def handle_login(self, conn):
         data = self.parse_json_body()
-        username = data.get('username')
+        # Accept "identifier" as an alias for backward compatibility with older frontends
+        username = data.get('username') or data.get('identifier')
         role = data.get('role')
         boutique_name = data.get('boutique_name')
         if not username or not role:
@@ -429,6 +430,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._set_headers(201)
             self.wfile.write(json.dumps({'id': order_id, 'date': date_str, 'status': 'pending', 'boutique_id': boutique_id, 'items': items_out}).encode())
 
+    def list_boutiques(self, conn, user):
+        if user is None:
+            self._set_headers(401)
+            self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+            return
+        cur = conn.execute('SELECT id, name, address FROM boutiques ORDER BY name COLLATE NOCASE')
+        boutiques = []
+        for row in cur.fetchall():
+            boutiques.append({'id': row[0], 'name': row[1], 'address': row[2]})
+        self._set_headers(200)
+        self.wfile.write(json.dumps(boutiques).encode())
+
     def update_or_finalize_order(self, conn, user, order_id, action):
         # Fetch order
         cur = conn.execute('SELECT id, date, status, boutique_id FROM orders WHERE id=?', (order_id,))
@@ -568,6 +581,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                     except ValueError:
                         cat_id = None
                 return self.list_products(conn, cat_id)
+            if self.path == '/api/boutiques':
+                return self.list_boutiques(conn, user)
             if self.path.startswith('/api/orders'):
                 # /api/orders or /api/orders?date=YYYY-MM-DD
                 return self.list_or_create_orders(conn, user)
