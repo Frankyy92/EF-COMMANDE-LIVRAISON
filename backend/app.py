@@ -19,6 +19,28 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Enable CORS so that the frontend can communicate with the API seamlessly
 CORS(app)
 
+
+class StripBackendPrefixMiddleware:
+    """Allow the application to be served under an optional /backend prefix."""
+
+    def __init__(self, app, prefix='/backend'):
+        self.app = app
+        self.prefix = prefix.rstrip('/') or '/backend'
+
+    def __call__(self, environ, start_response):
+        path = environ.get('PATH_INFO', '') or '/'
+        if path.startswith(self.prefix):
+            new_path = path[len(self.prefix):]
+            if not new_path:
+                new_path = '/'
+            elif not new_path.startswith('/'):
+                new_path = f'/{new_path}'
+            environ['PATH_INFO'] = new_path
+        return self.app(environ, start_response)
+
+
+app.wsgi_app = StripBackendPrefixMiddleware(app.wsgi_app)
+
 db = SQLAlchemy(app)
 
 
@@ -99,6 +121,7 @@ class Order(db.Model):
             'date': self.date.isoformat(),
             'status': self.status,
             'boutique_id': self.boutique_id,
+            'boutique_name': self.boutique.name if self.boutique else None,
             'items': [item.to_dict() for item in self.items]
         }
 
@@ -114,7 +137,8 @@ class OrderItem(db.Model):
             'id': self.id,
             'order_id': self.order_id,
             'product_id': self.product_id,
-            'quantity': self.quantity
+            'quantity': self.quantity,
+            'product_name': self.product.name if self.product else None
         }
 
 
@@ -156,7 +180,15 @@ def get_user_from_request():
     user_id = request.headers.get('X-User-Id')
     if not user_id:
         return None
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except (TypeError, ValueError):
+        return None
+
+
+@app.route('/api/health', methods=['GET'])
+def healthcheck():
+    return jsonify({'status': 'ok'})
 
 
 ###############################################################
@@ -175,7 +207,8 @@ def setup_database():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
-    username = data.get('username')
+    # Accept legacy "identifier" field as an alias for username
+    username = data.get('username') or data.get('identifier')
     role = data.get('role')
     boutique_name = data.get('boutique_name')
     if not username or not role:
@@ -247,6 +280,15 @@ def category_detail(cat_id):
         return jsonify({'message': 'Category deleted'})
 
 
+@app.route('/api/boutiques', methods=['GET'])
+def list_boutiques():
+    user = get_user_from_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    boutiques = Boutique.query.order_by(Boutique.name.asc()).all()
+    return jsonify([b.to_dict() for b in boutiques])
+
+
 @app.route('/api/products', methods=['GET', 'POST'])
 def products_endpoint():
     user = get_user_from_request()
@@ -311,15 +353,36 @@ def orders_endpoint():
     if request.method == 'GET':
         # optional filters: date
         date_str = request.args.get('date')
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        boutique_filter = request.args.get('boutique_id')
         query = Order.query
         if user.role == 'boutique':
             query = query.filter_by(boutique_id=user.boutique_id)
+        elif boutique_filter:
+            try:
+                query = query.filter_by(boutique_id=int(boutique_filter))
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid boutique_id'}), 400
         if date_str:
             try:
                 date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
                 query = query.filter_by(date=date_obj)
             except ValueError:
                 return jsonify({'error': 'Invalid date format (YYYY-MM-DD)'}), 400
+        else:
+            if start_date_str:
+                try:
+                    start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                    query = query.filter(Order.date >= start_date)
+                except ValueError:
+                    return jsonify({'error': 'Invalid start_date format (YYYY-MM-DD)'}), 400
+            if end_date_str:
+                try:
+                    end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                    query = query.filter(Order.date <= end_date)
+                except ValueError:
+                    return jsonify({'error': 'Invalid end_date format (YYYY-MM-DD)'}), 400
         orders = query.order_by(Order.date.desc()).all()
         return jsonify([o.to_dict() for o in orders])
     elif request.method == 'POST':
@@ -431,6 +494,29 @@ def aggregate_orders():
     return jsonify(data)
 
 
+@app.route('/api/labo/consolidation/validate', methods=['POST'])
+def validate_consolidation():
+    user = get_user_from_request()
+    if not user or user.role not in ['labo', 'admin']:
+        return jsonify({'error': 'Not authorized'}), 403
+    data = request.get_json() or {}
+    date_str = data.get('date')
+    if not date_str:
+        return jsonify({'error': 'date parameter is required (YYYY-MM-DD)'}), 400
+    try:
+        date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format (YYYY-MM-DD)'}), 400
+    adjustments = data.get('adjustments') or {}
+    orders = Order.query.filter_by(date=date_obj).all()
+    for order in orders:
+        order.status = 'validated'
+    db.session.commit()
+    details = {'date': date_str, 'adjustments': adjustments}
+    log_action(user, 'validate_consolidation', json.dumps(details))
+    return jsonify({'validated_orders': len(orders)})
+
+
 @app.route('/api/labo/delivery/<string:date_str>', methods=['GET'])
 def delivery_plan(date_str):
     user = get_user_from_request()
@@ -453,6 +539,7 @@ def delivery_plan(date_str):
                 'quantity': item.quantity
             })
         result.append({
+            'boutique_id': boutique.id if boutique else None,
             'boutique_name': boutique.name,
             'boutique_address': boutique.address,
             'order_id': order.id,
@@ -476,6 +563,13 @@ def generate_production_pdf(date_str):
     except ValueError:
         return jsonify({'error': 'Invalid date format (YYYY-MM-DD)'}), 400
     doc_type = request.args.get('type', 'production')
+    boutique_id_param = request.args.get('boutique_id')
+    boutique_filter = None
+    if boutique_id_param is not None:
+        try:
+            boutique_filter = int(boutique_id_param)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid boutique_id'}), 400
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
@@ -486,17 +580,22 @@ def generate_production_pdf(date_str):
     if doc_type == 'production':
         # aggregated products
         data = [['Produit', 'Quantité Totale']]
-        aggregated = db.session.query(Product.name, func.sum(OrderItem.quantity)) \
+        query = db.session.query(Product.name, func.sum(OrderItem.quantity)) \
             .join(OrderItem) \
             .join(Order) \
-            .filter(Order.date == date_obj) \
-            .group_by(Product.name).all()
+            .filter(Order.date == date_obj)
+        if boutique_filter is not None:
+            query = query.filter(Order.boutique_id == boutique_filter)
+        aggregated = query.group_by(Product.name).all()
         for name, qty in aggregated:
             data.append([name, int(qty or 0)])
     else:
         # delivery plan: each boutique with items
         data = [['Boutique', 'Produit', 'Quantité']]
-        orders = Order.query.filter_by(date=date_obj).all()
+        order_query = Order.query.filter_by(date=date_obj)
+        if boutique_filter is not None:
+            order_query = order_query.filter_by(boutique_id=boutique_filter)
+        orders = order_query.all()
         for order in orders:
             boutique_name = order.boutique.name
             for item in order.items:
