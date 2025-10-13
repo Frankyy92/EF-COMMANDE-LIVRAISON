@@ -16,14 +16,36 @@ body {
   left: 0;
   overflow-y: auto;
   transition: transform 0.3s ease-in-out;
+  z-index: 1000;
 }
 
-.nav h2 {
-  text-align: center;
-  margin: 0;
-  padding: 20px 0;
-  font-size: 1.2rem;
+.nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
   border-bottom: 1px solid #334155;
+}
+
+.nav-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.nav-close {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 1.6rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  display: none;
+}
+
+.nav-close:hover,
+.nav-close:focus {
+  color: #fff;
 }
 
 .nav a {
@@ -44,6 +66,22 @@ body {
   bottom: 0;
   width: 100%;
   border-top: 1px solid #334155;
+}
+
+.nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 900;
+}
+
+.nav-backdrop.visible {
+  display: block;
+}
+
+body.no-scroll {
+  overflow: hidden;
 }
 
 .main {
@@ -148,6 +186,9 @@ button:hover {
   }
   .nav.open {
     transform: translateX(0);
+  }
+  .nav-close {
+    display: block;
   }
   .main {
     margin-left: 0;
