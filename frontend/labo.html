@@ -133,11 +133,21 @@
       });
 
       async function loadConsolidation() {
-        const [categories, products, boutiques] = await Promise.all([
-          getCategories(),
-          getProducts(),
-          getBoutiques()
-        ]);
+        content.innerHTML = '<div class="header"><h1>Consolidation</h1></div><p>Chargement...</p>';
+        let categories;
+        let products;
+        let boutiques;
+        try {
+          [categories, products, boutiques] = await Promise.all([
+            getCategories(),
+            getProducts(),
+            getBoutiques()
+          ]);
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Consolidation</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
         let selectedDate = getTomorrow();
         let adjustments = {};
 
@@ -275,10 +285,19 @@
       }
 
       async function loadOrders() {
-        const [boutiques, products] = await Promise.all([
-          getBoutiques(),
-          getProducts()
-        ]);
+        content.innerHTML = '<div class="header"><h1>Commandes</h1></div><p>Chargement...</p>';
+        let boutiques;
+        let products;
+        try {
+          [boutiques, products] = await Promise.all([
+            getBoutiques(),
+            getProducts()
+          ]);
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Commandes</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
         const boutiqueMap = new Map(boutiques.map(b => [b.id, b.name]));
         let selectedDate = getTomorrow();
 
@@ -462,7 +481,15 @@
       }
 
       async function loadHistory() {
-        const boutiques = await getBoutiques();
+        content.innerHTML = '<div class="header"><h1>Historique</h1></div><p>Chargement...</p>';
+        let boutiques;
+        try {
+          boutiques = await getBoutiques();
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Historique</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
         let startDate = getToday();
         let endDate = getToday();
 
