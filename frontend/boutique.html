@@ -41,6 +41,25 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
+      const normalizeItems = (collection) => Array.isArray(collection) ? collection : [];
+
+      const formatStatus = (status) => {
+        const key = (status || '').toLowerCase();
+        if (key === 'validated') {
+          return '<span class="status-chip status-valid">Commande Validée</span>';
+        }
+        if (key === 'pending') {
+          return '<span class="status-chip status-pending">En attente</span>';
+        }
+        if (key === 'cancelled' || key === 'canceled') {
+          return '<span class="status-chip status-cancel">Annulée</span>';
+        }
+        if (!status) {
+          return '<span class="status-chip status-unknown">Statut inconnu</span>';
+        }
+        return `<span class="status-chip">${escapeHtml(status)}</span>`;
+      };
+
       document.getElementById('navOrder').addEventListener('click', (e) => {
         e.preventDefault();
         loadOrderPage();
@@ -246,7 +265,7 @@
           }
           html += '<table><thead><tr><th>Date</th><th>Statut</th><th>Détails</th></tr></thead><tbody>';
           orders.forEach(order => {
-            html += `<tr><td>${escapeHtml(order.date)}</td><td>${escapeHtml(order.status)}</td><td><button data-id="${order.id}" class="viewOrder">Voir</button></td></tr>`;
+            html += `<tr><td>${escapeHtml(order.date)}</td><td>${formatStatus(order.status)}</td><td><button data-id="${order.id}" class="viewOrder">Voir</button></td></tr>`;
           });
           html += '</tbody></table>';
           html += '<div id="orderDetails" class="details-panel hidden"></div>';
@@ -259,15 +278,16 @@
               const order = orders.find(o => o.id === id);
               if (!order) return;
               let detailHtml = `<h3>Commande du ${escapeHtml(order.date)}</h3>`;
-              detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
-              if (!order.items.length) {
-                detailHtml += '<p>Aucun produit.</p>';
-              } else {
-                detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
-                order.items.forEach(item => {
-                  const productLabel = item.product_name ? escapeHtml(item.product_name) : `Produit #${item.product_id}`;
-                  detailHtml += `<tr><td>${productLabel}</td><td>${item.quantity}</td></tr>`;
-                });
+            detailHtml += `<p class="subtle-text">Statut : ${formatStatus(order.status)}</p>`;
+            const items = normalizeItems(order.items);
+            if (!items.length) {
+              detailHtml += '<p>Aucun produit.</p>';
+            } else {
+              detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+              items.forEach(item => {
+                const productLabel = item.product_name ? escapeHtml(item.product_name) : `Produit #${item.product_id}`;
+                detailHtml += `<tr><td>${productLabel}</td><td>${item.quantity}</td></tr>`;
+              });
                 detailHtml += '</tbody></table>';
               }
               detailBox.innerHTML = detailHtml;

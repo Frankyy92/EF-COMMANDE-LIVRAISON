@@ -41,6 +41,25 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
+      const normalizeItems = (collection) => Array.isArray(collection) ? collection : [];
+
+      const formatStatus = (status) => {
+        const key = (status || '').toLowerCase();
+        if (key === 'validated') {
+          return '<span class="status-chip status-valid">Commande Validée</span>';
+        }
+        if (key === 'pending') {
+          return '<span class="status-chip status-pending">En attente</span>';
+        }
+        if (key === 'cancelled' || key === 'canceled') {
+          return '<span class="status-chip status-cancel">Annulée</span>';
+        }
+        if (!status) {
+          return '<span class="status-chip status-unknown">Statut inconnu</span>';
+        }
+        return `<span class="status-chip">${escapeHtml(status)}</span>`;
+      };
+
       document.getElementById('navDelivery').addEventListener('click', (e) => {
         e.preventDefault();
         loadDelivery();
@@ -70,7 +89,8 @@
           }
           let table = '<table><thead><tr><th>Boutique</th><th>Quantité</th><th>Actions</th></tr></thead><tbody>';
           orders.forEach(order => {
-            const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
+            const items = normalizeItems(order.items);
+            const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
             const name = order.boutique_name || `Boutique #${order.boutique_id}`;
             table += `<tr data-order="${order.order_id}"><td>${escapeHtml(name)}</td><td>${totalQty}</td>`;
             table += '<td><div class="table-actions">';
@@ -84,12 +104,13 @@
           const showDetail = (order) => {
             const name = order.boutique_name || `Boutique #${order.boutique_id}`;
             let detailHtml = `<h3>${escapeHtml(name)} – ${escapeHtml(date)}</h3>`;
-            detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
-            if (!order.items.length) {
+            detailHtml += `<p class="subtle-text">Statut : ${formatStatus(order.status)}</p>`;
+            const items = normalizeItems(order.items);
+            if (!items.length) {
               detailHtml += '<p>Aucun produit.</p>';
             } else {
               detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
-              order.items.forEach(item => {
+              items.forEach(item => {
                 detailHtml += `<tr><td>${escapeHtml(item.product_name)}</td><td>${item.quantity}</td></tr>`;
               });
               detailHtml += '</tbody></table>';
