@@ -78,17 +78,39 @@
       }
 
       // 1) Tentative d’API /api/login si elle existe (sinon on passe en fallback)
+      // Prépare la charge utile pour l'API : on envoie "username" et "identifier"
+      const payload = {
+        username: identifier,
+        identifier,
+        role,
+        ...(role === 'boutique' && boutique_name ? { boutique_name } : {})
+      };
+
       try {
-        const resp = await apiRequest('/api/login', 'POST', { identifier, role, boutique_name });
-        // On accepte 2 formats possibles: soit l’API renvoie le user, soit rien.
-        const user = (resp && typeof resp === 'object')
-          ? (resp.user || { id: identifier, role, boutique_name })
-          : { id: identifier, role, boutique_name };
-        localStorage.setItem('user', JSON.stringify(user));
+        const resp = await apiRequest('/api/login', 'POST', payload);
+        const backendUser = (resp && typeof resp === 'object') ? resp.user : null;
+        const storedUser = backendUser ? {
+          id: backendUser.id ?? identifier,
+          role: backendUser.role ?? role,
+          username: backendUser.username ?? identifier,
+          boutique_id: backendUser.boutique_id ?? undefined,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        } : {
+          id: identifier,
+          role,
+          username: identifier,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        };
+        localStorage.setItem('user', JSON.stringify(storedUser));
       } catch (e) {
         // 2) Fallback local : pas d’endpoint /api/login nécessaire, le back lit juste X-User-Id
-        const user = { id: identifier, role, boutique_name: role === 'boutique' ? boutique_name : undefined };
-        localStorage.setItem('user', JSON.stringify(user));
+        const fallbackUser = {
+          id: identifier,
+          role,
+          username: identifier,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        };
+        localStorage.setItem('user', JSON.stringify(fallbackUser));
       }
 
       // Redirection selon le rôle
