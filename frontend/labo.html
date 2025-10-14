@@ -963,11 +963,19 @@
             btn.addEventListener('click', () => {
               const dateValue = btn.getAttribute('data-date');
               const boutiqueId = btn.getAttribute('data-boutique');
-              let url = `/api/labo/pdf/${dateValue}?type=delivery`;
+              const params = new URLSearchParams();
+              params.set('type', 'delivery');
               if (boutiqueId) {
-                url += `&boutique_id=${boutiqueId}`;
+                params.set('boutique_id', boutiqueId);
               }
-              window.open(apiUrl(url), '_blank');
+              const currentUser = getUser();
+              if (currentUser && currentUser.id) {
+                params.set('user_id', currentUser.id);
+              }
+              const path = `/api/labo/pdf/${encodeURIComponent(dateValue)}`;
+              const query = params.toString();
+              const pdfUrl = query ? `${path}?${query}` : path;
+              window.open(apiUrl(pdfUrl), '_blank', 'noopener');
             });
           });
         };

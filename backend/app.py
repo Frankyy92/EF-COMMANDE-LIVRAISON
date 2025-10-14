@@ -174,21 +174,18 @@ def log_action(user, action, details=None):
 
 def get_user_from_request():
     """
-    Extracts the current user from the request headers. The frontend should
-    supply 'X-User-Id' header when calling protected endpoints.
+    Extracts the current user from the request context. The preferred method is
+    via the 'X-User-Id' header set by fetch() calls. For resources opened in a
+    new browser tab (e.g. PDF exports) we also accept a "user_id" query string
+    parameter so the download can be authorised without custom headers.
     """
-    user_id = request.headers.get('X-User-Id')
+    user_id = request.headers.get('X-User-Id') or request.args.get('user_id')
     if not user_id:
         return None
     try:
         return User.query.get(int(user_id))
     except (TypeError, ValueError):
         return None
-
-
-@app.route('/api/health', methods=['GET'])
-def healthcheck():
-    return jsonify({'status': 'ok'})
 
 
 ###############################################################
@@ -616,7 +613,12 @@ def generate_production_pdf(date_str):
     buffer.seek(0)
     pdf_filename = f"{'production' if doc_type=='production' else 'livraison'}_{date_obj.isoformat()}.pdf"
     log_action(user, 'generate_pdf', f'{doc_type} for {date_str}')
-    return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=pdf_filename)
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=pdf_filename,
+    )
 
 
 @app.route('/api/logs', methods=['GET'])
