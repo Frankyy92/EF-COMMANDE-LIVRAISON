@@ -8,14 +8,23 @@
 </head>
 <body>
   <div class="nav">
-    <h2>Labo</h2>
-    <a href="#" id="navProduction">Production</a>
-    <a href="#" id="navDelivery">Livraison</a>
+    <div class="nav-header">
+      <h2>Labo</h2>
+      <button type="button" class="nav-close" onclick="closeNav()" aria-label="Fermer le menu">×</button>
+    </div>
+    <a href="#" id="navConsolidation">Consolidation</a>
     <a href="#" id="navOrders">Commandes</a>
+    <a href="#" id="navHistory">Historique</a>
+    <a href="#" id="navDelivery">Livraison</a>
     <a href="#" onclick="logout()" class="logout">Déconnexion</a>
   </div>
+  <div class="nav-backdrop" onclick="closeNav()" aria-hidden="true"></div>
   <div class="main">
-    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div class="topbar">
+      <button type="button" class="hamburger" onclick="toggleNav()" aria-label="Ouvrir le menu">☰</button>
+      <span class="menu-label">Menu</span>
+      <button type="button" class="logout-top" onclick="logout()">Déconnexion</button>
+    </div>
     <div id="content"></div>
   </div>
   <script src="js/common.js"></script>
@@ -26,135 +35,656 @@
         window.location.href = 'index.html';
         return;
       }
+
       const content = document.getElementById('content');
-      document.getElementById('navProduction').addEventListener('click', (e) => {
+      const escapeHtml = (str = '') => String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+      const cache = {
+        categories: null,
+        products: null,
+        boutiques: null
+      };
+
+      const getCategories = async () => {
+        if (!cache.categories) {
+          cache.categories = await apiRequest('/api/categories');
+        }
+        return cache.categories;
+      };
+
+      const getProducts = async () => {
+        if (!cache.products) {
+          cache.products = await apiRequest('/api/products');
+        }
+        return cache.products;
+      };
+
+      const getBoutiques = async () => {
+        if (!cache.boutiques) {
+          try {
+            cache.boutiques = await apiRequest('/api/boutiques');
+          } catch (err) {
+            const message = err && err.message ? err.message : '';
+            if (message.includes('404')) {
+              console.warn('Endpoint /api/boutiques introuvable, utilisation d\'un tableau vide en secours.');
+              cache.boutiques = [];
+            } else {
+              throw err;
+            }
+          }
+        }
+        return cache.boutiques;
+      };
+
+      const renderQtyControl = (key, value = 0, { allowNegative = false, attr = 'product' } = {}) => {
+        const safeValue = Number.isFinite(value) ? value : parseInt(value, 10) || 0;
+        const attrName = `data-${attr}`;
+        const negativeAttr = allowNegative ? ' data-allow-negative="true"' : '';
+        const minAttr = allowNegative ? '' : ' min="0"';
+        return `
+          <div class="qty-control" ${attrName}="${key}"${negativeAttr}>
+            <button type="button" class="qty-btn minus" aria-label="Diminuer">&minus;</button>
+            <input type="number" class="qty-input"${minAttr} inputmode="numeric" value="${safeValue}">
+            <button type="button" class="qty-btn plus" aria-label="Augmenter">+</button>
+          </div>
+        `;
+      };
+
+      const bindQtyControls = (scope, { attr = 'product', allowNegative = false, onChange }) => {
+        scope.querySelectorAll(`.qty-control[data-${attr}]`).forEach(control => {
+          const key = parseInt(control.getAttribute(`data-${attr}`), 10);
+          const input = control.querySelector('.qty-input');
+          const minus = control.querySelector('.qty-btn.minus');
+          const plus = control.querySelector('.qty-btn.plus');
+          const allowNeg = allowNegative || control.getAttribute('data-allow-negative') === 'true';
+          const commit = (val) => {
+            let cleaned = parseInt(val, 10);
+            if (Number.isNaN(cleaned)) cleaned = 0;
+            if (!allowNeg && cleaned < 0) cleaned = 0;
+            input.value = cleaned;
+            if (typeof onChange === 'function') {
+              onChange(key, cleaned);
+            }
+          };
+          minus.addEventListener('click', () => {
+            const current = parseInt(input.value, 10) || 0;
+            commit(current - 1);
+          });
+          plus.addEventListener('click', () => {
+            const current = parseInt(input.value, 10) || 0;
+            commit(current + 1);
+          });
+          input.addEventListener('input', () => {
+            commit(input.value);
+          });
+        });
+      };
+
+      document.getElementById('navConsolidation').addEventListener('click', (e) => {
         e.preventDefault();
-        loadProduction();
-      });
-      document.getElementById('navDelivery').addEventListener('click', (e) => {
-        e.preventDefault();
-        loadDelivery();
+        loadConsolidation();
       });
       document.getElementById('navOrders').addEventListener('click', (e) => {
         e.preventDefault();
         loadOrders();
       });
-      async function loadProduction() {
-        let date = getTomorrow();
-        let html = '<h1>Plan de production</h1>';
-        html += '<label for="prodDate">Date :</label> <input type="date" id="prodDate" value="' + date + '"> '; 
-        html += '<button id="refreshProd">Afficher</button> ';
-        html += '<button id="printProd">Imprimer</button>';
-        html += '<div id="prodTable"></div>';
+      document.getElementById('navHistory').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadHistory();
+      });
+      document.getElementById('navDelivery').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadDelivery();
+      });
+
+      async function loadConsolidation() {
+        content.innerHTML = '<div class="header"><h1>Consolidation</h1></div><p>Chargement...</p>';
+        let categories;
+        let products;
+        let boutiques;
+        try {
+          [categories, products, boutiques] = await Promise.all([
+            getCategories(),
+            getProducts(),
+            getBoutiques()
+          ]);
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Consolidation</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
+        let selectedDate = getTomorrow();
+        let adjustments = {};
+
+        let html = '<div class="header"><h1>Consolidation</h1></div>';
+        html += '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">';
+        html += '<label for="consoDate">Date :</label>';
+        html += `<input type="date" id="consoDate" value="${selectedDate}">`;
+        html += '<button id="refreshConso">Afficher</button>';
+        html += '</div>';
+        html += '<div class="consolidation-actions"><button class="validate-consolidation">Valider la consolidation</button></div>';
+        html += '<div id="consolidationTable"></div>';
+        html += '<div class="consolidation-actions"><button class="validate-consolidation">Valider la consolidation</button></div>';
         content.innerHTML = html;
-        const fetchData = async () => {
-          date = document.getElementById('prodDate').value;
-          if (!date) return;
-          try {
-            const data = await apiRequest(`/api/labo/aggregate?date=${date}`);
-            let table = '<table><thead><tr><th>Produit</th><th>Quantité totale</th></tr></thead><tbody>';
-            if (data.length === 0) {
-              table += '<tr><td colspan="2">Aucune commande pour cette date.</td></tr>';
-            } else {
-              data.forEach(row => {
-                table += `<tr><td>${row.product_name}</td><td>${row.total_quantity}</td></tr>`;
-              });
-            }
-            table += '</tbody></table>';
-            document.getElementById('prodTable').innerHTML = table;
-          } catch (err) {
-            document.getElementById('prodTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+
+        const tableContainer = document.getElementById('consolidationTable');
+        const dateInput = document.getElementById('consoDate');
+
+        const renderTable = async (date, resetAdjustments = true) => {
+          if (!date) {
+            tableContainer.innerHTML = '<p>Merci de sélectionner une date.</p>';
+            return;
           }
-        };
-        document.getElementById('refreshProd').addEventListener('click', fetchData);
-        document.getElementById('printProd').addEventListener('click', () => {
-          window.print();
-        });
-        fetchData();
-      }
-      async function loadDelivery() {
-        let date = getTomorrow();
-        let html = '<h1>Plan de livraison</h1>';
-        html += '<label for="delivDate">Date :</label> <input type="date" id="delivDate" value="' + date + '"> ';
-        html += '<button id="refreshDeliv">Afficher</button> ';
-        html += '<button id="printDeliv">Imprimer</button>';
-        html += '<div id="delivTable"></div>';
-        content.innerHTML = html;
-        const fetchData = async () => {
-          date = document.getElementById('delivDate').value;
-          if (!date) return;
-          try {
-            const data = await apiRequest(`/api/labo/delivery/${date}`);
-            let table = '<table><thead><tr><th>Boutique</th><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
-            if (data.length === 0) {
-              table += '<tr><td colspan="3">Aucune commande pour cette date.</td></tr>';
-            } else {
-              data.forEach(order => {
-                order.items.forEach(item => {
-                  table += `<tr><td>${order.boutique_name || ''}</td><td>${item.product_name}</td><td>${item.quantity}</td></tr>`;
-                });
-              });
-            }
-            table += '</tbody></table>';
-            document.getElementById('delivTable').innerHTML = table;
-          } catch (err) {
-            document.getElementById('delivTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
-          }
-        };
-        document.getElementById('refreshDeliv').addEventListener('click', fetchData);
-        document.getElementById('printDeliv').addEventListener('click', () => {
-          window.print();
-        });
-        fetchData();
-      }
-      async function loadOrders() {
-        let date = getTomorrow();
-        let html = '<h1>Commandes par boutique</h1>';
-        html += '<label for="cmdDate">Date :</label> <input type="date" id="cmdDate" value="' + date + '"> ';
-        html += '<button id="refreshCmd">Afficher</button>';
-        html += '<div id="ordersTable"></div>';
-        content.innerHTML = html;
-        const fetchData = async () => {
-          date = document.getElementById('cmdDate').value;
-          if (!date) return;
+          tableContainer.innerHTML = '<p>Chargement...</p>';
           try {
             const orders = await apiRequest(`/api/orders?date=${date}`);
-            let table = '<table><thead><tr><th>Boutique</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
-            if (orders.length === 0) {
-              table += '<tr><td colspan="3">Aucune commande.</td></tr>';
-            } else {
-              orders.forEach(order => {
-                table += `<tr><td>${order.boutique_id}</td><td>${order.status}</td><td>`;
-                if (order.status !== 'validated') {
-                  table += `<button data-id="${order.id}" class="finalizeBtn">Valider</button>`;
-                }
-                table += '</td></tr>';
-              });
+            if (resetAdjustments) {
+              adjustments = {};
             }
+            if (!orders.length) {
+              tableContainer.innerHTML = '<p>Aucune commande pour cette date.</p>';
+              return;
+            }
+            const boutiqueLookup = new Map(boutiques.map(b => [b.id, b]));
+            const boutiqueColumnsMap = new Map();
+            orders.forEach(order => {
+              const name = order.boutique_name || boutiqueLookup.get(order.boutique_id)?.name || `Boutique #${order.boutique_id}`;
+              boutiqueColumnsMap.set(order.boutique_id, { id: order.boutique_id, name });
+            });
+            const boutiqueColumns = Array.from(boutiqueColumnsMap.values())
+              .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+            const aggregate = new Map();
+            products.forEach(prod => {
+              aggregate.set(prod.id, { total: 0, perBoutique: new Map() });
+            });
+            orders.forEach(order => {
+              order.items.forEach(item => {
+                const entry = aggregate.get(item.product_id);
+                if (!entry) return;
+                const current = entry.perBoutique.get(order.boutique_id) || 0;
+                entry.perBoutique.set(order.boutique_id, current + item.quantity);
+                entry.total += item.quantity;
+              });
+            });
+            const columnCount = boutiqueColumns.length + 3;
+            let table = '<table><thead><tr><th>Produit</th>';
+            boutiqueColumns.forEach(boutique => {
+              table += `<th>${escapeHtml(boutique.name)}</th>`;
+            });
+            table += '<th>Total</th><th>Ajustement</th></tr></thead><tbody>';
+            categories.forEach(category => {
+              const prods = products.filter(prod => prod.category_id === category.id)
+                .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+              if (!prods.length) {
+                return;
+              }
+              table += `<tr class="category-row"><td colspan="${columnCount}">${escapeHtml(category.name)}</td></tr>`;
+              prods.forEach(prod => {
+                const metrics = aggregate.get(prod.id) || { total: 0, perBoutique: new Map() };
+                const currentAdjustment = adjustments[prod.id] ?? 0;
+                const baseTotal = metrics.total || 0;
+                const adjustedTotal = baseTotal + currentAdjustment;
+                table += `<tr data-product="${prod.id}"><td>${escapeHtml(prod.name)}</td>`;
+                boutiqueColumns.forEach(boutique => {
+                  const qty = metrics.perBoutique.get(boutique.id) || 0;
+                  table += `<td>${qty}</td>`;
+                });
+                table += `<td class="total-cell" data-product="${prod.id}" data-base="${baseTotal}">${adjustedTotal}</td>`;
+                table += `<td>${renderQtyControl(prod.id, currentAdjustment, { allowNegative: true, attr: 'adjust' })}</td></tr>`;
+              });
+            });
             table += '</tbody></table>';
-            document.getElementById('ordersTable').innerHTML = table;
-            document.querySelectorAll('.finalizeBtn').forEach(btn => {
-              btn.addEventListener('click', async () => {
-                const id = btn.getAttribute('data-id');
-                if (confirm('Valider cette commande ?')) {
-                  try {
-                    await apiRequest(`/api/orders/${id}/finalize`, 'POST');
-                    fetchData();
-                  } catch (err) {
-                    alert(err.message);
+            tableContainer.innerHTML = table;
+            bindQtyControls(tableContainer, {
+              attr: 'adjust',
+              allowNegative: true,
+              onChange: (productId, value) => {
+                if (value === 0) {
+                  delete adjustments[productId];
+                } else {
+                  adjustments[productId] = value;
+                }
+                const totalCell = tableContainer.querySelector(`.total-cell[data-product="${productId}"]`);
+                if (totalCell) {
+                  const base = parseInt(totalCell.getAttribute('data-base'), 10) || 0;
+                  totalCell.textContent = base + value;
+                }
+              }
+            });
+          } catch (err) {
+            tableContainer.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
+          }
+        };
+
+        document.getElementById('refreshConso').addEventListener('click', () => {
+          selectedDate = dateInput.value;
+          renderTable(selectedDate, true);
+        });
+
+        content.querySelectorAll('.validate-consolidation').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!selectedDate) {
+              alert('Veuillez sélectionner une date.');
+              return;
+            }
+            const payload = {};
+            Object.entries(adjustments).forEach(([productId, value]) => {
+              if (value !== 0) {
+                payload[productId] = value;
+              }
+            });
+            try {
+              await apiRequest('/api/labo/consolidation/validate', 'POST', {
+                date: selectedDate,
+                adjustments: payload
+              });
+              alert('Consolidation validée');
+              renderTable(selectedDate, true);
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+        });
+
+        renderTable(selectedDate, true);
+      }
+
+      async function loadOrders() {
+        content.innerHTML = '<div class="header"><h1>Commandes</h1></div><p>Chargement...</p>';
+        let boutiques;
+        let products;
+        try {
+          [boutiques, products] = await Promise.all([
+            getBoutiques(),
+            getProducts()
+          ]);
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Commandes</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
+        const boutiqueMap = new Map(boutiques.map(b => [b.id, b.name]));
+        let selectedDate = getTomorrow();
+
+        let html = '<div class="header"><h1>Commandes</h1></div>';
+        html += '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">';
+        html += '<label for="ordersDate">Date :</label>';
+        html += `<input type="date" id="ordersDate" value="${selectedDate}">`;
+        html += '<label for="ordersBoutique">Boutique :</label>';
+        html += '<select id="ordersBoutique"><option value="">Toutes</option>';
+        boutiques
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+          .forEach(boutique => {
+            html += `<option value="${boutique.id}">${escapeHtml(boutique.name)}</option>`;
+          });
+        html += '</select>';
+        html += '<button id="refreshOrders">Afficher</button>';
+        html += '</div>';
+        html += '<div id="ordersTable"></div>';
+        html += '<div id="orderDetails" class="details-panel hidden"></div>';
+        content.innerHTML = html;
+
+        const tableContainer = document.getElementById('ordersTable');
+        const detailBox = document.getElementById('orderDetails');
+
+        const renderOrders = (orders) => {
+          if (!orders.length) {
+            tableContainer.innerHTML = '<p>Aucune commande pour les critères sélectionnés.</p>';
+            detailBox.classList.add('hidden');
+            detailBox.innerHTML = '';
+            return;
+          }
+          let table = '<table><thead><tr><th>Boutique</th><th>Détails</th><th>Actions</th></tr></thead><tbody>';
+          orders.forEach(order => {
+            const name = order.boutique_name || boutiqueMap.get(order.boutique_id) || `Boutique #${order.boutique_id}`;
+            table += `<tr data-id="${order.id}"><td>${escapeHtml(name)}</td><td><button class="viewOrder" data-id="${order.id}">Voir</button></td>`;
+            table += '<td><div class="table-actions">';
+            table += `<button class="editOrder" data-id="${order.id}">Modifier</button>`;
+            if (order.status !== 'validated') {
+              table += `<button class="finalizeOrder" data-id="${order.id}">Valider</button>`;
+            }
+            table += '</div></td></tr>';
+          });
+          table += '</tbody></table>';
+          tableContainer.innerHTML = table;
+
+          const showOrderDetails = (order) => {
+            const name = order.boutique_name || boutiqueMap.get(order.boutique_id) || `Boutique #${order.boutique_id}`;
+            let detailHtml = `<h3>${escapeHtml(name)} – commande du ${escapeHtml(order.date)}</h3>`;
+            detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
+            if (!order.items.length) {
+              detailHtml += '<p>Aucun produit.</p>';
+            } else {
+              detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+              order.items.forEach(item => {
+                const productLabel = item.product_name || products.find(p => p.id === item.product_id)?.name || `Produit #${item.product_id}`;
+                detailHtml += `<tr><td>${escapeHtml(productLabel)}</td><td>${item.quantity}</td></tr>`;
+              });
+              detailHtml += '</tbody></table>';
+            }
+            detailBox.innerHTML = detailHtml;
+            detailBox.classList.remove('hidden');
+          };
+
+          const showOrderEditor = (order) => {
+            const editQuantities = {};
+            order.items.forEach(item => {
+              editQuantities[item.product_id] = item.quantity;
+            });
+            const name = order.boutique_name || boutiqueMap.get(order.boutique_id) || `Boutique #${order.boutique_id}`;
+            let editor = `<h3>Modifier la commande – ${escapeHtml(name)}</h3>`;
+            editor += `<p class="subtle-text">${escapeHtml(order.date)}</p>`;
+            if (!order.items.length) {
+              editor += '<p>Aucun produit à modifier.</p>';
+            } else {
+              editor += '<form id="orderEditForm">';
+              editor += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+              order.items.forEach(item => {
+                const productLabel = item.product_name || products.find(p => p.id === item.product_id)?.name || `Produit #${item.product_id}`;
+                editor += `<tr><td>${escapeHtml(productLabel)}</td><td>${renderQtyControl(item.product_id, item.quantity)}</td></tr>`;
+              });
+              editor += '</tbody></table>';
+              editor += '<div class="consolidation-actions"><button type="submit">Enregistrer</button><button type="button" id="cancelEdit">Annuler</button></div>';
+              editor += '</form>';
+            }
+            detailBox.innerHTML = editor;
+            detailBox.classList.remove('hidden');
+            const form = detailBox.querySelector('#orderEditForm');
+            if (form) {
+              bindQtyControls(form, {
+                onChange: (productId, value) => {
+                  if (value <= 0) {
+                    delete editQuantities[productId];
+                  } else {
+                    editQuantities[productId] = value;
                   }
                 }
               });
+              form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const items = Object.entries(editQuantities).map(([productId, quantity]) => ({
+                  product_id: parseInt(productId, 10),
+                  quantity: parseInt(quantity, 10) || 0
+                })).filter(item => item.quantity > 0);
+                try {
+                  await apiRequest(`/api/orders/${order.id}`, 'PUT', { items });
+                  alert('Commande mise à jour');
+                  await fetchOrders();
+                } catch (err) {
+                  alert(err.message);
+                }
+              });
+              const cancelBtn = detailBox.querySelector('#cancelEdit');
+              if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                  detailBox.classList.add('hidden');
+                  detailBox.innerHTML = '';
+                });
+              }
+            }
+          };
+
+          tableContainer.querySelectorAll('.viewOrder').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              const order = orders.find(o => o.id === id);
+              if (order) {
+                showOrderDetails(order);
+              }
             });
+          });
+
+          tableContainer.querySelectorAll('.editOrder').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              const order = orders.find(o => o.id === id);
+              if (order) {
+                showOrderEditor(order);
+              }
+            });
+          });
+
+          tableContainer.querySelectorAll('.finalizeOrder').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              if (!id) return;
+              if (!confirm('Valider cette commande ?')) return;
+              try {
+                await apiRequest(`/api/orders/${id}/finalize`, 'POST');
+                await fetchOrders();
+              } catch (err) {
+                alert(err.message);
+              }
+            });
+          });
+        };
+
+        const fetchOrders = async () => {
+          const params = new URLSearchParams();
+          selectedDate = document.getElementById('ordersDate').value;
+          const boutiqueFilter = document.getElementById('ordersBoutique').value;
+          if (selectedDate) {
+            params.set('date', selectedDate);
+          }
+          if (boutiqueFilter) {
+            params.set('boutique_id', boutiqueFilter);
+          }
+          tableContainer.innerHTML = '<p>Chargement...</p>';
+          try {
+            const query = params.toString();
+            const endpoint = query ? `/api/orders?${query}` : '/api/orders';
+            const orders = await apiRequest(endpoint);
+            renderOrders(orders);
           } catch (err) {
-            document.getElementById('ordersTable').innerHTML = `<p>Erreur: ${err.message}</p>`;
+            tableContainer.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
           }
         };
-        document.getElementById('refreshCmd').addEventListener('click', fetchData);
-        fetchData();
+
+        document.getElementById('refreshOrders').addEventListener('click', fetchOrders);
+        fetchOrders();
       }
-      // Default view
-      loadProduction();
+
+      async function loadHistory() {
+        content.innerHTML = '<div class="header"><h1>Historique</h1></div><p>Chargement...</p>';
+        let boutiques;
+        try {
+          boutiques = await getBoutiques();
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de récupérer les données.';
+          content.innerHTML = `<div class="header"><h1>Historique</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
+        let startDate = getToday();
+        let endDate = getToday();
+
+        let html = '<div class="header"><h1>Historique</h1></div>';
+        html += '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">';
+        html += '<label for="historyStart">Du :</label>';
+        html += `<input type="date" id="historyStart" value="${startDate}">`;
+        html += '<label for="historyEnd">Au :</label>';
+        html += `<input type="date" id="historyEnd" value="${endDate}">`;
+        html += '<label for="historyBoutique">Boutique :</label>';
+        html += '<select id="historyBoutique"><option value="">Toutes</option>';
+        boutiques
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+          .forEach(boutique => {
+            html += `<option value="${boutique.id}">${escapeHtml(boutique.name)}</option>`;
+          });
+        html += '</select>';
+        html += '<button id="refreshHistory">Afficher</button>';
+        html += '</div>';
+        html += '<div id="historyResults"></div>';
+        html += '<div id="historyDetails" class="details-panel hidden"></div>';
+        content.innerHTML = html;
+
+        const resultsContainer = document.getElementById('historyResults');
+        const detailBox = document.getElementById('historyDetails');
+
+        const renderHistory = (orders) => {
+          if (!orders.length) {
+            resultsContainer.innerHTML = '<p>Aucune commande trouvée.</p>';
+            detailBox.classList.add('hidden');
+            detailBox.innerHTML = '';
+            return;
+          }
+          const dataset = orders.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+          let table = '<table><thead><tr><th>Date</th><th>Boutique</th><th>Statut</th><th>Détails</th></tr></thead><tbody>';
+          dataset.forEach(order => {
+            const name = order.boutique_name || boutiques.find(b => b.id === order.boutique_id)?.name || `Boutique #${order.boutique_id}`;
+            table += `<tr><td>${escapeHtml(order.date)}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(order.status)}</td><td><button class="viewHistory" data-id="${order.id}">Voir</button></td></tr>`;
+          });
+          table += '</tbody></table>';
+          resultsContainer.innerHTML = table;
+
+          resultsContainer.querySelectorAll('.viewHistory').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              const order = dataset.find(o => o.id === id);
+              if (!order) return;
+              const name = order.boutique_name || boutiques.find(b => b.id === order.boutique_id)?.name || `Boutique #${order.boutique_id}`;
+              let detailHtml = `<h3>${escapeHtml(name)} – ${escapeHtml(order.date)}</h3>`;
+              detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
+              if (!order.items.length) {
+                detailHtml += '<p>Aucun produit.</p>';
+              } else {
+                detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+                order.items.forEach(item => {
+                  const productLabel = item.product_name || `Produit #${item.product_id}`;
+                  detailHtml += `<tr><td>${escapeHtml(productLabel)}</td><td>${item.quantity}</td></tr>`;
+                });
+                detailHtml += '</tbody></table>';
+              }
+              detailBox.innerHTML = detailHtml;
+              detailBox.classList.remove('hidden');
+            });
+          });
+        };
+
+        const fetchHistory = async () => {
+          const params = new URLSearchParams();
+          startDate = document.getElementById('historyStart').value;
+          endDate = document.getElementById('historyEnd').value;
+          const boutiqueFilter = document.getElementById('historyBoutique').value;
+          if (startDate) params.set('start_date', startDate);
+          if (endDate) params.set('end_date', endDate);
+          if (boutiqueFilter) params.set('boutique_id', boutiqueFilter);
+          resultsContainer.innerHTML = '<p>Chargement...</p>';
+          try {
+            const query = params.toString();
+            const endpoint = query ? `/api/orders?${query}` : '/api/orders';
+            const orders = await apiRequest(endpoint);
+            renderHistory(orders);
+          } catch (err) {
+            resultsContainer.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
+          }
+        };
+
+        document.getElementById('refreshHistory').addEventListener('click', fetchHistory);
+        fetchHistory();
+      }
+
+      async function loadDelivery() {
+        let selectedDate = getTomorrow();
+        let html = '<div class="header"><h1>Livraison</h1></div>';
+        html += '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">';
+        html += '<label for="deliveryDate">Date :</label>';
+        html += `<input type="date" id="deliveryDate" value="${selectedDate}">`;
+        html += '<button id="refreshDelivery">Afficher</button>';
+        html += '</div>';
+        html += '<div id="deliveryTable"></div>';
+        html += '<div id="deliveryDetails" class="details-panel hidden"></div>';
+        content.innerHTML = html;
+
+        const tableContainer = document.getElementById('deliveryTable');
+        const detailBox = document.getElementById('deliveryDetails');
+
+        const renderDelivery = (orders, date) => {
+          if (!orders.length) {
+            tableContainer.innerHTML = '<p>Aucune commande pour cette date.</p>';
+            detailBox.classList.add('hidden');
+            detailBox.innerHTML = '';
+            return;
+          }
+          let table = '<table><thead><tr><th>Boutique</th><th>Quantité</th><th>Actions</th></tr></thead><tbody>';
+          orders.forEach(order => {
+            const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
+            const name = order.boutique_name || `Boutique #${order.boutique_id}`;
+            table += `<tr data-order="${order.order_id}"><td>${escapeHtml(name)}</td><td>${totalQty}</td>`;
+            table += '<td><div class="table-actions">';
+            table += `<button class="viewDelivery" data-id="${order.order_id}">Afficher</button>`;
+            table += `<button class="icon-button printDelivery" data-date="${date}" data-boutique="${order.boutique_id || ''}" title="Imprimer">🖨️</button>`;
+            table += '</div></td></tr>';
+          });
+          table += '</tbody></table>';
+          tableContainer.innerHTML = table;
+
+          const showDetail = (order) => {
+            const name = order.boutique_name || `Boutique #${order.boutique_id}`;
+            let detailHtml = `<h3>${escapeHtml(name)} – ${escapeHtml(date)}</h3>`;
+            detailHtml += `<p class="subtle-text">Statut : ${escapeHtml(order.status)}</p>`;
+            if (!order.items.length) {
+              detailHtml += '<p>Aucun produit.</p>';
+            } else {
+              detailHtml += '<table><thead><tr><th>Produit</th><th>Quantité</th></tr></thead><tbody>';
+              order.items.forEach(item => {
+                detailHtml += `<tr><td>${escapeHtml(item.product_name)}</td><td>${item.quantity}</td></tr>`;
+              });
+              detailHtml += '</tbody></table>';
+            }
+            detailBox.innerHTML = detailHtml;
+            detailBox.classList.remove('hidden');
+          };
+
+          tableContainer.querySelectorAll('.viewDelivery').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = parseInt(btn.getAttribute('data-id'), 10);
+              const order = orders.find(o => o.order_id === id);
+              if (order) {
+                showDetail(order);
+              }
+            });
+          });
+
+          tableContainer.querySelectorAll('.printDelivery').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const dateValue = btn.getAttribute('data-date');
+              const boutiqueId = btn.getAttribute('data-boutique');
+              let url = `/api/labo/pdf/${dateValue}?type=delivery`;
+              if (boutiqueId) {
+                url += `&boutique_id=${boutiqueId}`;
+              }
+              window.open(apiUrl(url), '_blank');
+            });
+          });
+        };
+
+        const fetchDelivery = async () => {
+          selectedDate = document.getElementById('deliveryDate').value;
+          if (!selectedDate) {
+            tableContainer.innerHTML = '<p>Merci de choisir une date.</p>';
+            return;
+          }
+          tableContainer.innerHTML = '<p>Chargement...</p>';
+          try {
+            const orders = await apiRequest(`/api/labo/delivery/${selectedDate}`);
+            renderDelivery(orders, selectedDate);
+          } catch (err) {
+            tableContainer.innerHTML = `<p>Erreur: ${escapeHtml(err.message)}</p>`;
+          }
+        };
+
+        document.getElementById('refreshDelivery').addEventListener('click', fetchDelivery);
+        fetchDelivery();
+      }
+
+      loadConsolidation();
     })();
   </script>
 </body>
