@@ -19,6 +19,28 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Enable CORS so that the frontend can communicate with the API seamlessly
 CORS(app)
 
+
+class StripBackendPrefixMiddleware:
+    """Allow the application to be served under an optional /backend prefix."""
+
+    def __init__(self, app, prefix='/backend'):
+        self.app = app
+        self.prefix = prefix.rstrip('/') or '/backend'
+
+    def __call__(self, environ, start_response):
+        path = environ.get('PATH_INFO', '') or '/'
+        if path.startswith(self.prefix):
+            new_path = path[len(self.prefix):]
+            if not new_path:
+                new_path = '/'
+            elif not new_path.startswith('/'):
+                new_path = f'/{new_path}'
+            environ['PATH_INFO'] = new_path
+        return self.app(environ, start_response)
+
+
+app.wsgi_app = StripBackendPrefixMiddleware(app.wsgi_app)
+
 db = SQLAlchemy(app)
 
 
