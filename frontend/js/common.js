@@ -5,53 +5,76 @@
  * - Gestion session & helpers UI
  * ============================================================ */
 
+const DEFAULT_REMOTE_API = 'https://orderflow-pro-f7lb.onrender.com';
+
 const API_BASE = (() => {
   if (typeof window !== 'undefined') {
-    try {
-      const params = new URLSearchParams(window.location.search || '');
-      const override = params.get('api');
+    const { location, API_BASE: globalBase } = window;
+    const params = (() => {
+      try {
+        return new URLSearchParams(location ? location.search : '');
+      } catch (_) {
+        return null;
+      }
+    })();
+
+    // Allow overriding via query string (?api_base=...), stored for next visits.
+    if (params) {
+      const override = params.get('api_base') || params.get('api') || params.get('apiBase');
       if (override) {
-        localStorage.setItem('apiBaseOverride', override);
-        window.API_BASE = override;
-      } else if (!window.API_BASE) {
-        const stored = localStorage.getItem('apiBaseOverride');
-        if (stored) {
-          window.API_BASE = stored;
+        try {
+          const decoded = decodeURIComponent(override).replace(/\/$/, '');
+          if (decoded.toLowerCase() === 'reset') {
+            localStorage.removeItem('apiBaseOverride');
+          } else {
+            localStorage.setItem('apiBaseOverride', decoded);
+            return decoded;
+          }
+        } catch (_) {
+          // ignore malformed override
         }
       }
-    } catch (err) {
-      // Ignore parsing/storage errors and fallback to defaults
     }
-    if (window.API_BASE) {
-      return String(window.API_BASE).replace(/\/$/, '');
+
+    try {
+      const stored = localStorage.getItem('apiBaseOverride');
+      if (stored) {
+        return stored.replace(/\/$/, '');
+      }
+    } catch (_) {
+      // localStorage unavailable (private mode, etc.)
     }
-    const { origin, protocol, host } = window.location || {};
-    if (origin && origin.startsWith('http')) {
-      return origin.replace(/\/$/, '');
+
+    if (globalBase) {
+      return String(globalBase).replace(/\/$/, '');
     }
-    if (protocol && host && protocol.startsWith('http')) {
-      return `${protocol}//${host}`.replace(/\/$/, '');
+
+    if (location) {
+      const { origin, protocol, host, hostname } = location;
+      const isLocalHost = hostname && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(hostname);
+      if (isLocalHost && origin && origin.startsWith('http')) {
+        return origin.replace(/\/$/, '');
+      }
+      if (origin && origin.startsWith('http')) {
+        // Render static hosting typically serves the frontend only – use the backend Render app instead.
+        if (/\.onrender\.com$/i.test(hostname || '')) {
+          return DEFAULT_REMOTE_API;
+        }
+        return origin.replace(/\/$/, '');
+      }
+      if (protocol && host && protocol.startsWith('http')) {
+        return `${protocol}//${host}`.replace(/\/$/, '');
+      }
     }
   }
-  return 'http://localhost:5000';
+  return DEFAULT_REMOTE_API;
 })();
 
 // Compose l'URL absolue de l'API
 function apiUrl(path) {
-  if (!path) {
-    return API_BASE || '';
-  }
-  if (/^https?:\/\//i.test(path)) {
-    return path;
-  }
-  const suffix = path.startsWith('/') ? path : `/${path}`;
   const base = API_BASE || '';
-  if (!base) {
-    return suffix;
-  }
-  if (base.endsWith('/api') && suffix.startsWith('/api/')) {
-    return `${base.replace(/\/api$/, '')}${suffix}`;
-  }
+  if (!path) return base;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
   return `${base}${suffix}`;
 }
 

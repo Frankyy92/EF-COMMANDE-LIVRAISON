@@ -66,7 +66,17 @@
 
       const getBoutiques = async () => {
         if (!cache.boutiques) {
-          cache.boutiques = await apiRequest('/api/boutiques');
+          try {
+            cache.boutiques = await apiRequest('/api/boutiques');
+          } catch (err) {
+            const message = err && err.message ? err.message : '';
+            if (message.includes('404')) {
+              console.warn('Endpoint /api/boutiques introuvable, utilisation d\'un tableau vide en secours.');
+              cache.boutiques = [];
+            } else {
+              throw err;
+            }
+          }
         }
         return cache.boutiques;
       };
