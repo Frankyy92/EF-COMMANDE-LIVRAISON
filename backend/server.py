@@ -182,7 +182,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def handle_login(self, conn):
         data = self.parse_json_body()
-        username = data.get('username')
+        # Accept "identifier" as an alias for backward compatibility with older frontends
+        username = data.get('username') or data.get('identifier')
         role = data.get('role')
         boutique_name = data.get('boutique_name')
         if not username or not role:
@@ -354,30 +355,90 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
             return
         if self.command == 'GET':
-            # Optional filter by date
+            # Optional filters: date, start_date/end_date range, boutique_id
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
             date_str = params.get('date', [None])[0]
+            start_date = params.get('start_date', [None])[0]
+            end_date = params.get('end_date', [None])[0]
+            boutique_filter = params.get('boutique_id', [None])[0]
             query = 'SELECT id, date, status, boutique_id FROM orders'
             conditions = []
             values = []
             if user['role'] == 'boutique':
                 conditions.append('boutique_id=?')
                 values.append(user['boutique_id'])
+            if boutique_filter:
+                try:
+                    boutique_filter_id = int(boutique_filter)
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid boutique_id'}).encode())
+                    return
+                conditions.append('boutique_id=?')
+                values.append(boutique_filter_id)
             if date_str:
+                try:
+                    datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid date format (YYYY-MM-DD)'}).encode())
+                    return
                 conditions.append('date=?')
                 values.append(date_str)
+            else:
+                if start_date:
+                    try:
+                        datetime.datetime.strptime(start_date, '%Y-%m-%d')
+                    except ValueError:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Invalid start_date format (YYYY-MM-DD)'}).encode())
+                        return
+                    conditions.append('date>=?')
+                    values.append(start_date)
+                if end_date:
+                    try:
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                    except ValueError:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Invalid end_date format (YYYY-MM-DD)'}).encode())
+                        return
+                    conditions.append('date<=?')
+                    values.append(end_date)
             if conditions:
                 query += ' WHERE ' + ' AND '.join(conditions)
-            query += ' ORDER BY date DESC'
+            query += ' ORDER BY date DESC, id DESC'
             cur = conn.execute(query, tuple(values))
             orders = []
             for row in cur.fetchall():
                 order_id, date, status, boutique_id = row
-                # fetch items
-                cur_items = conn.execute('SELECT product_id, quantity FROM order_items WHERE order_id=?', (order_id,))
-                items = [{'product_id': pid, 'quantity': qty} for pid, qty in cur_items.fetchall()]
-                orders.append({'id': order_id, 'date': date, 'status': status, 'boutique_id': boutique_id, 'items': items})
+                # fetch boutique info if available
+                boutique_name = None
+                boutique_address = None
+                if boutique_id:
+                    cur_b = conn.execute('SELECT name, address FROM boutiques WHERE id=?', (boutique_id,))
+                    b = cur_b.fetchone()
+                    if b:
+                        boutique_name, boutique_address = b
+                # fetch items with names
+                cur_items = conn.execute('''
+                    SELECT oi.product_id, oi.quantity, p.name
+                    FROM order_items oi
+                    LEFT JOIN products p ON p.id = oi.product_id
+                    WHERE oi.order_id=?
+                ''', (order_id,))
+                items = []
+                for pid, qty, name in cur_items.fetchall():
+                    items.append({'product_id': pid, 'quantity': qty, 'product_name': name or ''})
+                orders.append({
+                    'id': order_id,
+                    'date': date,
+                    'status': status,
+                    'boutique_id': boutique_id,
+                    'boutique_name': boutique_name,
+                    'boutique_address': boutique_address,
+                    'items': items
+                })
             self._set_headers(200)
             self.wfile.write(json.dumps(orders).encode())
             return
@@ -424,10 +485,45 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.commit()
             log_action(conn, user['id'], 'create_or_update_order', f'Order {order_id} for {date_str}')
             # return order
-            cur_items = conn.execute('SELECT product_id, quantity FROM order_items WHERE order_id=?', (order_id,))
-            items_out = [{'product_id': pid, 'quantity': qty} for pid, qty in cur_items.fetchall()]
+            cur_order = conn.execute('SELECT date, status, boutique_id FROM orders WHERE id=?', (order_id,)).fetchone()
+            cur_items = conn.execute('''
+                SELECT oi.product_id, oi.quantity, p.name
+                FROM order_items oi
+                LEFT JOIN products p ON p.id = oi.product_id
+                WHERE oi.order_id=?
+            ''', (order_id,))
+            items_out = [{'product_id': pid, 'quantity': qty, 'product_name': name or ''}
+                         for pid, qty, name in cur_items.fetchall()]
+            boutique_name = None
+            boutique_address = None
+            if cur_order and cur_order[2]:
+                cur_b = conn.execute('SELECT name, address FROM boutiques WHERE id=?', (cur_order[2],))
+                b = cur_b.fetchone()
+                if b:
+                    boutique_name, boutique_address = b
+            response = {
+                'id': order_id,
+                'date': cur_order[0] if cur_order else date_str,
+                'status': cur_order[1] if cur_order else 'pending',
+                'boutique_id': cur_order[2] if cur_order else boutique_id,
+                'boutique_name': boutique_name,
+                'boutique_address': boutique_address,
+                'items': items_out
+            }
             self._set_headers(201)
-            self.wfile.write(json.dumps({'id': order_id, 'date': date_str, 'status': 'pending', 'boutique_id': boutique_id, 'items': items_out}).encode())
+            self.wfile.write(json.dumps(response).encode())
+
+    def list_boutiques(self, conn, user):
+        if user is None:
+            self._set_headers(401)
+            self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+            return
+        cur = conn.execute('SELECT id, name, address FROM boutiques ORDER BY name COLLATE NOCASE')
+        boutiques = []
+        for row in cur.fetchall():
+            boutiques.append({'id': row[0], 'name': row[1], 'address': row[2]})
+        self._set_headers(200)
+        self.wfile.write(json.dumps(boutiques).encode())
 
     def update_or_finalize_order(self, conn, user, order_id, action):
         # Fetch order
@@ -464,11 +560,32 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.commit()
             log_action(conn, user['id'], 'update_order', f'Order {order_id}')
             # Return updated order
-            cur_items = conn.execute('SELECT product_id, quantity FROM order_items WHERE order_id=?', (order_id,))
-            items_out = [{'product_id': pid, 'quantity': qty} for pid, qty in cur_items.fetchall()]
+            cur_items = conn.execute('''
+                SELECT oi.product_id, oi.quantity, p.name
+                FROM order_items oi
+                LEFT JOIN products p ON p.id = oi.product_id
+                WHERE oi.order_id=?
+            ''', (order_id,))
+            items_out = [{'product_id': pid, 'quantity': qty, 'product_name': name or ''}
+                         for pid, qty, name in cur_items.fetchall()]
             new_status = status if status else order[2]
+            boutique_name = None
+            boutique_address = None
+            if order[3]:
+                cur_b = conn.execute('SELECT name, address FROM boutiques WHERE id=?', (order[3],))
+                b = cur_b.fetchone()
+                if b:
+                    boutique_name, boutique_address = b
             self._set_headers(200)
-            self.wfile.write(json.dumps({'id': order_id, 'date': order[1], 'status': new_status, 'boutique_id': order[3], 'items': items_out}).encode())
+            self.wfile.write(json.dumps({
+                'id': order_id,
+                'date': order[1],
+                'status': new_status,
+                'boutique_id': order[3],
+                'boutique_name': boutique_name,
+                'boutique_address': boutique_address,
+                'items': items_out
+            }).encode())
         elif action == 'finalize':
             # Only admin or labo
             if user is None or user['role'] not in ['admin', 'labo']:
@@ -478,8 +595,22 @@ class RequestHandler(BaseHTTPRequestHandler):
             conn.execute('UPDATE orders SET status=?, updated_at=? WHERE id=?', ('validated', datetime.datetime.utcnow().isoformat(), order_id))
             conn.commit()
             log_action(conn, user['id'], 'finalize_order', f'Order {order_id}')
+            boutique_name = None
+            boutique_address = None
+            if order[3]:
+                cur_b = conn.execute('SELECT name, address FROM boutiques WHERE id=?', (order[3],))
+                b = cur_b.fetchone()
+                if b:
+                    boutique_name, boutique_address = b
             self._set_headers(200)
-            self.wfile.write(json.dumps({'id': order_id, 'date': order[1], 'status': 'validated', 'boutique_id': order[3]}).encode())
+            self.wfile.write(json.dumps({
+                'id': order_id,
+                'date': order[1],
+                'status': 'validated',
+                'boutique_id': order[3],
+                'boutique_name': boutique_name,
+                'boutique_address': boutique_address
+            }).encode())
 
     def aggregate(self, conn, user):
         parsed = urlparse(self.path)
@@ -507,6 +638,38 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._set_headers(200)
         self.wfile.write(json.dumps(data).encode())
 
+    def validate_consolidation(self, conn, user):
+        if user is None or user['role'] not in ['admin', 'labo']:
+            self._set_headers(403)
+            self.wfile.write(json.dumps({'error': 'Not authorized'}).encode())
+            return
+        data = self.parse_json_body()
+        date_str = data.get('date')
+        if not date_str:
+            self._set_headers(400)
+            self.wfile.write(json.dumps({'error': 'date parameter is required (YYYY-MM-DD)'}).encode())
+            return
+        try:
+            datetime.datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            self._set_headers(400)
+            self.wfile.write(json.dumps({'error': 'Invalid date format (YYYY-MM-DD)'}).encode())
+            return
+        adjustments = data.get('adjustments') or {}
+        cur = conn.execute('SELECT COUNT(*) FROM orders WHERE date=?', (date_str,))
+        total = cur.fetchone()[0]
+        conn.execute('UPDATE orders SET status=?, updated_at=? WHERE date=?',
+                     ('validated', datetime.datetime.utcnow().isoformat(), date_str))
+        conn.commit()
+        if user:
+            try:
+                details = json.dumps({'date': date_str, 'adjustments': adjustments})
+            except TypeError:
+                details = json.dumps({'date': date_str})
+            log_action(conn, user['id'], 'validate_consolidation', details)
+        self._set_headers(200)
+        self.wfile.write(json.dumps({'date': date_str, 'validated_orders': total}).encode())
+
     def delivery(self, conn, user, date_str):
         # Only labo/admin/livreur
         if user is None or user['role'] not in ['admin', 'labo', 'livreur']:
@@ -530,7 +693,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 # fetch product name
                 p = conn.execute('SELECT name FROM products WHERE id=?', (pid,)).fetchone()
                 items.append({'product_id': pid, 'product_name': p[0] if p else '', 'quantity': qty})
-            orders.append({'order_id': order_id, 'status': status, 'boutique_name': boutique_name, 'boutique_address': address, 'items': items})
+            orders.append({'order_id': order_id,
+                           'status': status,
+                           'boutique_id': boutique_id,
+                           'boutique_name': boutique_name,
+                           'boutique_address': address,
+                           'items': items})
         self._set_headers(200)
         self.wfile.write(json.dumps(orders).encode())
 
@@ -568,6 +736,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                     except ValueError:
                         cat_id = None
                 return self.list_products(conn, cat_id)
+            if self.path == '/api/boutiques':
+                return self.list_boutiques(conn, user)
             if self.path.startswith('/api/orders'):
                 # /api/orders or /api/orders?date=YYYY-MM-DD
                 return self.list_or_create_orders(conn, user)
@@ -609,6 +779,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({'error': 'Invalid order id'}).encode())
                     return
                 return self.update_or_finalize_order(conn, user, order_id, 'finalize')
+            if self.path == '/api/labo/consolidation/validate':
+                return self.validate_consolidation(conn, user)
             # Not found
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode())
