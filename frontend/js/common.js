@@ -5,12 +5,77 @@
  * - Gestion session & helpers UI
  * ============================================================ */
 
-const API_BASE = 'https://orderflow-pro-f7lb.onrender.com'; // <= TON backend Render
+const DEFAULT_REMOTE_API = 'https://orderflow-pro-f7lb.onrender.com';
+
+const API_BASE = (() => {
+  if (typeof window !== 'undefined') {
+    const { location, API_BASE: globalBase } = window;
+    const params = (() => {
+      try {
+        return new URLSearchParams(location ? location.search : '');
+      } catch (_) {
+        return null;
+      }
+    })();
+
+    // Allow overriding via query string (?api_base=...), stored for next visits.
+    if (params) {
+      const override = params.get('api_base') || params.get('api') || params.get('apiBase');
+      if (override) {
+        try {
+          const decoded = decodeURIComponent(override).replace(/\/$/, '');
+          if (decoded.toLowerCase() === 'reset') {
+            localStorage.removeItem('apiBaseOverride');
+          } else {
+            localStorage.setItem('apiBaseOverride', decoded);
+            return decoded;
+          }
+        } catch (_) {
+          // ignore malformed override
+        }
+      }
+    }
+
+    try {
+      const stored = localStorage.getItem('apiBaseOverride');
+      if (stored) {
+        return stored.replace(/\/$/, '');
+      }
+    } catch (_) {
+      // localStorage unavailable (private mode, etc.)
+    }
+
+    if (globalBase) {
+      return String(globalBase).replace(/\/$/, '');
+    }
+
+    if (location) {
+      const { origin, protocol, host, hostname } = location;
+      const isLocalHost = hostname && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(hostname);
+      if (isLocalHost && origin && origin.startsWith('http')) {
+        return origin.replace(/\/$/, '');
+      }
+      if (origin && origin.startsWith('http')) {
+        // Render static hosting typically serves the frontend only – use the backend Render app instead.
+        if (/\.onrender\.com$/i.test(hostname || '')) {
+          return DEFAULT_REMOTE_API;
+        }
+        return origin.replace(/\/$/, '');
+      }
+      if (protocol && host && protocol.startsWith('http')) {
+        return `${protocol}//${host}`.replace(/\/$/, '');
+      }
+    }
+  }
+  return DEFAULT_REMOTE_API;
+})();
 
 // Compose l'URL absolue de l'API
 function apiUrl(path) {
-  if (!path) return API_BASE;
-  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+  const base = API_BASE || '';
+  if (!path) return base;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${suffix}`;
 }
 
 // Utilisateur courant
@@ -72,10 +137,60 @@ function logout() {
 }
 
 // Menu latéral (mobile)
-function toggleNav() {
+function setNavState(open) {
   const nav = document.querySelector('.nav');
-  if (nav) nav.classList.toggle('open');
+  const backdrop = document.querySelector('.nav-backdrop');
+  if (!nav) return;
+  const shouldOpen = Boolean(open);
+  if (shouldOpen) {
+    nav.classList.add('open');
+  } else {
+    nav.classList.remove('open');
+  }
+  if (backdrop) {
+    backdrop.classList.toggle('visible', shouldOpen);
+  }
+  if (document.body) {
+    document.body.classList.toggle('no-scroll', shouldOpen && window.innerWidth <= 768);
+  }
 }
+
+function toggleNav(force) {
+  const nav = document.querySelector('.nav');
+  if (!nav) return;
+  if (typeof force === 'boolean') {
+    setNavState(force);
+    return;
+  }
+  setNavState(!nav.classList.contains('open'));
+}
+
+function closeNav() {
+  setNavState(false);
+}
+
+function initNav() {
+  const nav = document.querySelector('.nav');
+  if (!nav) return;
+  const links = nav.querySelectorAll('a');
+  links.forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 768) closeNav();
+    });
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && nav.classList.contains('open')) {
+      closeNav();
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      setNavState(false);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initNav);
 
 // Format YYYY-MM-DD
 function formatDate(date) {
@@ -84,6 +199,10 @@ function formatDate(date) {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getToday() {
+  return formatDate(new Date());
 }
 
 // Demain YYYY-MM-DD
