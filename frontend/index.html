@@ -5,24 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connexion – Commandes Pâtisserie</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .login-container {
-      max-width: 360px; margin: 80px auto; padding: 24px;
-      background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.08);
-    }
-    .login-container h1 { margin: 0 0 12px; }
-    .field { margin: 10px 0; }
-    .field label { display:block; font-size:14px; margin-bottom:6px; }
-    .input, select {
-      width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:12px;
-    }
-    .btn { background:#1e293b; color:#fff; border:none; border-radius:14px; padding:12px 16px; width:100%; cursor:pointer; }
-    .hint { font-size:12px; color:#6b7280; margin-top:8px; }
-    .hidden { display:none; }
-  </style>
 </head>
-<body>
-  <div class="login-container">
+<body class="login-screen">
+  <div class="login-card">
     <h1>Connexion</h1>
     <p class="hint">Pas de mot de passe : entre un identifiant et choisis ton rôle.</p>
 
@@ -48,7 +33,7 @@
     </div>
 
     <button id="loginBtn" class="btn">Se connecter</button>
-    <div id="error" class="hint" style="color:#b91c1c; margin-top:10px;"></div>
+    <div id="error" class="hint error"></div>
   </div>
 
   <script src="js/common.js"></script>
@@ -78,17 +63,39 @@
       }
 
       // 1) Tentative d’API /api/login si elle existe (sinon on passe en fallback)
+      // Prépare la charge utile pour l'API : on envoie "username" et "identifier"
+      const payload = {
+        username: identifier,
+        identifier,
+        role,
+        ...(role === 'boutique' && boutique_name ? { boutique_name } : {})
+      };
+
       try {
-        const resp = await apiRequest('/api/login', 'POST', { identifier, role, boutique_name });
-        // On accepte 2 formats possibles: soit l’API renvoie le user, soit rien.
-        const user = (resp && typeof resp === 'object')
-          ? (resp.user || { id: identifier, role, boutique_name })
-          : { id: identifier, role, boutique_name };
-        localStorage.setItem('user', JSON.stringify(user));
+        const resp = await apiRequest('/api/login', 'POST', payload);
+        const backendUser = (resp && typeof resp === 'object') ? resp.user : null;
+        const storedUser = backendUser ? {
+          id: backendUser.id ?? identifier,
+          role: backendUser.role ?? role,
+          username: backendUser.username ?? identifier,
+          boutique_id: backendUser.boutique_id ?? undefined,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        } : {
+          id: identifier,
+          role,
+          username: identifier,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        };
+        localStorage.setItem('user', JSON.stringify(storedUser));
       } catch (e) {
         // 2) Fallback local : pas d’endpoint /api/login nécessaire, le back lit juste X-User-Id
-        const user = { id: identifier, role, boutique_name: role === 'boutique' ? boutique_name : undefined };
-        localStorage.setItem('user', JSON.stringify(user));
+        const fallbackUser = {
+          id: identifier,
+          role,
+          username: identifier,
+          ...(role === 'boutique' ? { boutique_name } : {})
+        };
+        localStorage.setItem('user', JSON.stringify(fallbackUser));
       }
 
       // Redirection selon le rôle

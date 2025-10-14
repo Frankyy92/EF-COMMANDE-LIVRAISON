@@ -8,14 +8,22 @@
 </head>
 <body>
   <div class="nav">
-    <h2>Admin</h2>
-    <a href="#" id="navCategories">Catégories</a>
-    <a href="#" id="navProducts">Produits</a>
-    <a href="#" id="navLogs">Historique</a>
-    <a href="#" onclick="logout()" class="logout">Déconnexion</a>
+    <div class="nav-header">
+      <h2>Admin</h2>
+      <button type="button" class="nav-close" onclick="closeNav()" aria-label="Fermer le menu">×</button>
+    </div>
+    <a href="#" id="navCategories" class="nav-button">Catégories</a>
+    <a href="#" id="navProducts" class="nav-button">Produits</a>
+    <a href="#" id="navLogs" class="nav-button">Historique</a>
+    <a href="#" onclick="logout()" class="nav-button logout">Déconnexion</a>
   </div>
+  <div class="nav-backdrop" onclick="closeNav()" aria-hidden="true"></div>
   <div class="main">
-    <div class="hamburger" onclick="toggleNav()">☰</div>
+    <div class="topbar">
+      <button type="button" class="hamburger" onclick="toggleNav()" aria-label="Ouvrir le menu">☰</button>
+      <span class="menu-label">Menu</span>
+      <button type="button" class="logout-top" onclick="logout()">Déconnexion</button>
+    </div>
     <div id="content"></div>
   </div>
   <script src="js/common.js"></script>
@@ -26,6 +34,13 @@
         window.location.href = 'index.html';
         return;
       }
+      const escapeHtml = (str = '') => str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
       // Elements
       const navCategories = document.getElementById('navCategories');
       const navProducts = document.getElementById('navProducts');
@@ -53,7 +68,8 @@
           let html = '<h1>Catégories</h1>';
           html += '<table><thead><tr><th>ID</th><th>Nom</th><th>Actions</th></tr></thead><tbody>';
           cats.forEach(cat => {
-            html += `<tr><td>${cat.id}</td><td>${cat.name}</td><td><button data-id="${cat.id}" class="delCat">Supprimer</button></td></tr>`;
+            html += `<tr data-id="${cat.id}"><td>${cat.id}</td><td>${escapeHtml(cat.name)}</td>`;
+            html += `<td><button data-id="${cat.id}" class="editCat">Modifier</button> <button data-id="${cat.id}" class="delCat">Supprimer</button></td></tr>`;
           });
           html += '</tbody></table>';
           html += '<h3>Ajouter une catégorie</h3>';
@@ -64,24 +80,60 @@
             if (!name) return;
             try {
               await apiRequest('/api/categories', 'POST', { name });
+              document.getElementById('newCatName').value = '';
               loadCategories();
             } catch (err) {
               alert(err.message);
             }
           });
-          document.querySelectorAll('.delCat').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const id = btn.getAttribute('data-id');
-              if (confirm('Supprimer cette catégorie ?')) {
-                try {
-                  await apiRequest(`/api/categories/${id}`, 'DELETE');
+          const bindCategoryRowActions = () => {
+            document.querySelectorAll('.editCat').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const cat = cats.find(c => c.id === id);
+                if (!cat) return;
+                const row = btn.closest('tr');
+                if (!row) return;
+                row.innerHTML = `
+                  <td>${cat.id}</td>
+                  <td><input type="text" class="catNameInput" value="${escapeHtml(cat.name)}" /></td>
+                  <td>
+                    <button class="saveCat">Enregistrer</button>
+                    <button class="cancelCat">Annuler</button>
+                  </td>`;
+                row.querySelector('.saveCat').addEventListener('click', async () => {
+                  const newName = row.querySelector('.catNameInput').value.trim();
+                  if (!newName) {
+                    alert('Le nom ne peut pas être vide.');
+                    return;
+                  }
+                  try {
+                    await apiRequest(`/api/categories/${id}`, 'PUT', { name: newName });
+                    loadCategories();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                });
+                row.querySelector('.cancelCat').addEventListener('click', () => {
                   loadCategories();
-                } catch (err) {
-                  alert(err.message);
-                }
-              }
+                });
+              });
             });
-          });
+            document.querySelectorAll('.delCat').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm('Supprimer cette catégorie ?')) {
+                  try {
+                    await apiRequest(`/api/categories/${id}`, 'DELETE');
+                    loadCategories();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }
+              });
+            });
+          };
+          bindCategoryRowActions();
         } catch (err) {
           content.innerHTML = `<p>Erreur: ${err.message}</p>`;
         }
@@ -94,7 +146,7 @@
           let html = '<h1>Produits</h1>';
           html += '<label>Filtrer par catégorie :</label> <select id="filterCategory"><option value="">Toutes</option>';
           cats.forEach(cat => {
-            html += `<option value="${cat.id}">${cat.name}</option>`;
+            html += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
           });
           html += '</select> <button id="refreshProds">Rafraîchir</button>';
           html += '<div id="prodTableContainer"></div>';
@@ -102,7 +154,7 @@
           html += '<input type="text" id="newProdName" placeholder="Nom du produit"> ';
           html += '<select id="newProdCat"><option value="">Catégorie</option>';
           cats.forEach(cat => {
-            html += `<option value="${cat.id}">${cat.name}</option>`;
+            html += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
           });
           html += '</select> <button id="addProdBtn">Ajouter</button>';
           content.innerHTML = html;
@@ -113,17 +165,53 @@
             let table = '<table><thead><tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Actions</th></tr></thead><tbody>';
             products.forEach(p => {
               const catName = cats.find(c => c.id === p.category_id)?.name || '';
-              table += `<tr><td>${p.id}</td><td>${p.name}</td><td>${catName}</td><td><button data-id="${p.id}" class="delProd">Supprimer</button></td></tr>`;
+              table += `<tr data-id="${p.id}"><td>${p.id}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(catName)}</td>`;
+              table += `<td><button data-id="${p.id}" class="editProd">Modifier</button> <button data-id="${p.id}" class="delProd">Supprimer</button></td></tr>`;
             });
             table += '</tbody></table>';
             document.getElementById('prodTableContainer').innerHTML = table;
+            document.querySelectorAll('.editProd').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const product = products.find(prod => prod.id === id);
+                if (!product) return;
+                const row = btn.closest('tr');
+                if (!row) return;
+                const options = cats.map(cat => `<option value="${cat.id}" ${cat.id === product.category_id ? 'selected' : ''}>${escapeHtml(cat.name)}</option>`).join('');
+                row.innerHTML = `
+                  <td>${product.id}</td>
+                  <td><input type="text" class="prodNameInput" value="${escapeHtml(product.name)}" /></td>
+                  <td><select class="prodCatSelect">${options}</select></td>
+                  <td>
+                    <button class="saveProd">Enregistrer</button>
+                    <button class="cancelProd">Annuler</button>
+                  </td>`;
+                row.querySelector('.saveProd').addEventListener('click', async () => {
+                  const newName = row.querySelector('.prodNameInput').value.trim();
+                  const newCatId = parseInt(row.querySelector('.prodCatSelect').value, 10);
+                  if (!newName || !newCatId) {
+                    alert('Le nom et la catégorie sont obligatoires.');
+                    return;
+                  }
+                  try {
+                    await apiRequest(`/api/products/${id}`, 'PUT', { name: newName, category_id: newCatId });
+                    await loadList();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                });
+                row.querySelector('.cancelProd').addEventListener('click', () => {
+                  loadList();
+                });
+              });
+            });
             document.querySelectorAll('.delProd').forEach(btn => {
               btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm('Supprimer ce produit ?')) {
                   try {
                     await apiRequest(`/api/products/${id}`, 'DELETE');
-                    loadList();
+                    await loadList();
                   } catch (err) {
                     alert(err.message);
                   }
@@ -143,7 +231,7 @@
               await apiRequest('/api/products', 'POST', { name, category_id: parseInt(catId) });
               document.getElementById('newProdName').value = '';
               document.getElementById('newProdCat').value = '';
-              loadList();
+              await loadList();
             } catch (err) {
               alert(err.message);
             }
@@ -159,7 +247,9 @@
           let html = '<h1>Historique des actions</h1>';
           html += '<table><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th></tr></thead><tbody>';
           logs.forEach(l => {
-            html += `<tr><td>${new Date(l.timestamp).toLocaleString()}</td><td>${l.user_id || ''}</td><td>${l.action}</td><td>${l.details || ''}</td></tr>`;
+            const action = l.action ? escapeHtml(String(l.action)) : '';
+            const details = l.details ? escapeHtml(String(l.details)) : '';
+            html += `<tr><td>${new Date(l.timestamp).toLocaleString()}</td><td>${l.user_id || ''}</td><td>${action}</td><td>${details}</td></tr>`;
           });
           html += '</tbody></table>';
           content.innerHTML = html;
