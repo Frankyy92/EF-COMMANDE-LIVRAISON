@@ -237,6 +237,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._set_headers(200)
         self.wfile.write(json.dumps(categories).encode())
 
+    def _has_catalog_permissions(self, user):
+        return bool(user and user.get('role') in ('admin', 'labo'))
+
     def create_category(self, conn, user):
         data = self.parse_json_body()
         name = data.get('name')
@@ -244,7 +247,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._set_headers(400)
             self.wfile.write(json.dumps({'error': 'name is required'}).encode())
             return
-        if user is None or user['role'] != 'admin':
+        if not self._has_catalog_permissions(user):
             self._set_headers(403)
             self.wfile.write(json.dumps({'error': 'Not authorized'}).encode())
             return
@@ -269,7 +272,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Category not found'}).encode())
             return
-        if user is None or user['role'] != 'admin':
+        if not self._has_catalog_permissions(user):
             self._set_headers(403)
             self.wfile.write(json.dumps({'error': 'Not authorized'}).encode())
             return
@@ -303,7 +306,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         data = self.parse_json_body()
         name = data.get('name')
         category_id = data.get('category_id')
-        if user is None or user['role'] != 'admin':
+        if not self._has_catalog_permissions(user):
             self._set_headers(403)
             self.wfile.write(json.dumps({'error': 'Not authorized'}).encode())
             return
@@ -337,7 +340,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Product not found'}).encode())
             return
-        if user is None or user['role'] != 'admin':
+        if not self._has_catalog_permissions(user):
             self._set_headers(403)
             self.wfile.write(json.dumps({'error': 'Not authorized'}).encode())
             return

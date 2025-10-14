@@ -5,24 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connexion – Commandes Pâtisserie</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .login-container {
-      max-width: 360px; margin: 80px auto; padding: 24px;
-      background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.08);
-    }
-    .login-container h1 { margin: 0 0 12px; }
-    .field { margin: 10px 0; }
-    .field label { display:block; font-size:14px; margin-bottom:6px; }
-    .input, select {
-      width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:12px;
-    }
-    .btn { background:#1e293b; color:#fff; border:none; border-radius:14px; padding:12px 16px; width:100%; cursor:pointer; }
-    .hint { font-size:12px; color:#6b7280; margin-top:8px; }
-    .hidden { display:none; }
-  </style>
 </head>
-<body>
-  <div class="login-container">
+<body class="login-screen">
+  <div class="login-card">
     <h1>Connexion</h1>
     <p class="hint">Pas de mot de passe : entre un identifiant et choisis ton rôle.</p>
 
@@ -48,7 +33,7 @@
     </div>
 
     <button id="loginBtn" class="btn">Se connecter</button>
-    <div id="error" class="hint" style="color:#b91c1c; margin-top:10px;"></div>
+    <div id="error" class="hint error"></div>
   </div>
 
   <script src="js/common.js"></script>
