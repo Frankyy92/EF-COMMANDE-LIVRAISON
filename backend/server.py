@@ -538,18 +538,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._set_headers(200)
         self.wfile.write(json.dumps(boutiques).encode())
 
-    def list_boutiques(self, conn, user):
-        if user is None:
-            self._set_headers(401)
-            self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
-            return
-        cur = conn.execute('SELECT id, name, address FROM boutiques ORDER BY name COLLATE NOCASE')
-        boutiques = []
-        for row in cur.fetchall():
-            boutiques.append({'id': row[0], 'name': row[1], 'address': row[2]})
-        self._set_headers(200)
-        self.wfile.write(json.dumps(boutiques).encode())
-
     def update_or_finalize_order(self, conn, user, order_id, action):
         # Fetch order
         cur = conn.execute('SELECT id, date, status, boutique_id FROM orders WHERE id=?', (order_id,))

@@ -16,6 +16,8 @@
     <a href="#" id="navOrders">Commandes</a>
     <a href="#" id="navHistory">Historique</a>
     <a href="#" id="navDelivery">Livraison</a>
+    <a href="#" id="navCategories">Catégories</a>
+    <a href="#" id="navProducts">Produits</a>
     <a href="#" onclick="logout()" class="logout">Déconnexion</a>
   </div>
   <div class="nav-backdrop" onclick="closeNav()" aria-hidden="true"></div>
@@ -141,6 +143,287 @@
         e.preventDefault();
         loadDelivery();
       });
+      document.getElementById('navCategories').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadCategoriesManager();
+      });
+      document.getElementById('navProducts').addEventListener('click', (e) => {
+        e.preventDefault();
+        loadProductsManager();
+      });
+
+      async function loadCategoriesManager() {
+        content.innerHTML = '<div class="header"><h1>Catégories</h1></div><p>Chargement...</p>';
+        try {
+          const categories = await apiRequest('/api/categories');
+          cache.categories = categories;
+          const render = (cats) => {
+            let html = '<div class="header"><h1>Catégories</h1></div>';
+            html += '<table><thead><tr><th>ID</th><th>Nom</th><th>Actions</th></tr></thead><tbody>';
+            cats.forEach(cat => {
+              html += `<tr data-id="${cat.id}"><td>${cat.id}</td><td>${escapeHtml(cat.name)}</td>`;
+              html += `<td><div class="table-actions"><button data-id="${cat.id}" class="editCat">Modifier</button>`;
+              html += `<button data-id="${cat.id}" class="delCat">Supprimer</button></div></td></tr>`;
+            });
+            html += '</tbody></table>';
+            html += '<div class="card-form">';
+            html += '<h3>Ajouter une catégorie</h3>';
+            html += '<div class="form-line">';
+            html += '<input type="text" id="newCatName" placeholder="Nom de la catégorie">';
+            html += '<button id="addCatBtn">Ajouter</button>';
+            html += '</div></div>';
+            content.innerHTML = html;
+
+            const refresh = () => loadCategoriesManager();
+
+            const addBtn = document.getElementById('addCatBtn');
+            if (addBtn) {
+              addBtn.addEventListener('click', async () => {
+                const nameField = document.getElementById('newCatName');
+                const name = nameField.value.trim();
+                if (!name) {
+                  alert('Merci de saisir un nom.');
+                  return;
+                }
+                try {
+                  await apiRequest('/api/categories', 'POST', { name });
+                  cache.categories = null;
+                  cache.products = null;
+                  refresh();
+                } catch (err) {
+                  alert(err.message);
+                }
+              });
+            }
+
+            content.querySelectorAll('.editCat').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const category = cats.find(c => c.id === id);
+                if (!category) return;
+                const row = btn.closest('tr');
+                if (!row) return;
+                row.innerHTML = `
+                  <td>${category.id}</td>
+                  <td><input type="text" class="catNameInput" value="${escapeHtml(category.name)}"></td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="saveCat">Enregistrer</button>
+                      <button class="cancelCat">Annuler</button>
+                    </div>
+                  </td>`;
+                const saveBtn = row.querySelector('.saveCat');
+                const cancelBtn = row.querySelector('.cancelCat');
+                if (saveBtn) {
+                  saveBtn.addEventListener('click', async () => {
+                    const newName = row.querySelector('.catNameInput').value.trim();
+                    if (!newName) {
+                      alert('Le nom ne peut pas être vide.');
+                      return;
+                    }
+                    try {
+                      await apiRequest(`/api/categories/${id}`, 'PUT', { name: newName });
+                      cache.categories = null;
+                      cache.products = null;
+                      refresh();
+                    } catch (err) {
+                      alert(err.message);
+                    }
+                  });
+                }
+                if (cancelBtn) {
+                  cancelBtn.addEventListener('click', refresh);
+                }
+              });
+            });
+
+            content.querySelectorAll('.delCat').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (!confirm('Supprimer cette catégorie ?')) {
+                  return;
+                }
+                try {
+                  await apiRequest(`/api/categories/${id}`, 'DELETE');
+                  cache.categories = null;
+                  cache.products = null;
+                  refresh();
+                } catch (err) {
+                  alert(err.message);
+                }
+              });
+            });
+          };
+
+          render(categories);
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de charger les catégories.';
+          content.innerHTML = `<div class="header"><h1>Catégories</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+        }
+      }
+
+      async function loadProductsManager() {
+        content.innerHTML = '<div class="header"><h1>Produits</h1></div><p>Chargement...</p>';
+        let categories;
+        try {
+          categories = await apiRequest('/api/categories');
+          cache.categories = categories;
+        } catch (err) {
+          const message = err && err.message ? err.message : 'Impossible de charger les catégories.';
+          content.innerHTML = `<div class="header"><h1>Produits</h1></div><p>Erreur: ${escapeHtml(message)}</p>`;
+          return;
+        }
+
+        const buildLayout = () => {
+          let html = '<div class="header"><h1>Produits</h1></div>';
+          html += '<div class="card-form">';
+          html += '<div class="form-line" style="gap:12px; flex-wrap:wrap; display:flex; align-items:center;">';
+          html += '<label for="filterCategory">Filtrer par catégorie :</label>';
+          html += '<select id="filterCategory"><option value="">Toutes</option>';
+          categories
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+            .forEach(cat => {
+              html += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
+            });
+          html += '</select>';
+          html += '<button id="refreshProds">Afficher</button>';
+          html += '</div>';
+          html += '</div>';
+          html += '<div id="prodTableContainer"></div>';
+          html += '<div class="card-form" style="margin-top:24px;">';
+          html += '<h3>Ajouter un produit</h3>';
+          html += '<div class="form-line" style="display:flex; gap:12px; flex-wrap:wrap;">';
+          html += '<input type="text" id="newProdName" placeholder="Nom du produit">';
+          html += '<select id="newProdCat"><option value="">Catégorie</option>';
+          categories.forEach(cat => {
+            html += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
+          });
+          html += '</select>';
+          html += '<button id="addProdBtn">Ajouter</button>';
+          html += '</div></div>';
+          content.innerHTML = html;
+        };
+
+        buildLayout();
+
+        const tableContainer = document.getElementById('prodTableContainer');
+        const filterSelect = document.getElementById('filterCategory');
+        const refreshBtn = document.getElementById('refreshProds');
+
+        const loadList = async () => {
+          const selectedCat = filterSelect.value;
+          const endpoint = selectedCat ? `/api/products?category_id=${selectedCat}` : '/api/products';
+          tableContainer.innerHTML = '<p>Chargement...</p>';
+          try {
+            const products = await apiRequest(endpoint);
+            cache.products = selectedCat ? null : products;
+            let table = '<table><thead><tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Actions</th></tr></thead><tbody>';
+            products.forEach(prod => {
+              const catName = categories.find(cat => cat.id === prod.category_id)?.name || '';
+              table += `<tr data-id="${prod.id}"><td>${prod.id}</td><td>${escapeHtml(prod.name)}</td><td>${escapeHtml(catName)}</td>`;
+              table += `<td><div class="table-actions"><button data-id="${prod.id}" class="editProd">Modifier</button>`;
+              table += `<button data-id="${prod.id}" class="delProd">Supprimer</button></div></td></tr>`;
+            });
+            table += '</tbody></table>';
+            tableContainer.innerHTML = table;
+
+            tableContainer.querySelectorAll('.editProd').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const row = btn.closest('tr');
+                if (!row) return;
+                const product = products.find(p => p.id === id);
+                if (!product) return;
+                const options = categories.map(cat => `
+                  <option value="${cat.id}" ${cat.id === product.category_id ? 'selected' : ''}>${escapeHtml(cat.name)}</option>
+                `).join('');
+                row.innerHTML = `
+                  <td>${product.id}</td>
+                  <td><input type="text" class="prodNameInput" value="${escapeHtml(product.name)}"></td>
+                  <td><select class="prodCatSelect">${options}</select></td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="saveProd">Enregistrer</button>
+                      <button class="cancelProd">Annuler</button>
+                    </div>
+                  </td>`;
+                const saveBtn = row.querySelector('.saveProd');
+                const cancelBtn = row.querySelector('.cancelProd');
+                if (saveBtn) {
+                  saveBtn.addEventListener('click', async () => {
+                    const newName = row.querySelector('.prodNameInput').value.trim();
+                    const newCatId = parseInt(row.querySelector('.prodCatSelect').value, 10);
+                    if (!newName || !newCatId) {
+                      alert('Le nom et la catégorie sont obligatoires.');
+                      return;
+                    }
+                    try {
+                      await apiRequest(`/api/products/${id}`, 'PUT', { name: newName, category_id: newCatId });
+                      cache.products = null;
+                      await loadList();
+                    } catch (err) {
+                      alert(err.message);
+                    }
+                  });
+                }
+                if (cancelBtn) {
+                  cancelBtn.addEventListener('click', () => {
+                    loadList();
+                  });
+                }
+              });
+            });
+
+            tableContainer.querySelectorAll('.delProd').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (!confirm('Supprimer ce produit ?')) {
+                  return;
+                }
+                try {
+                  await apiRequest(`/api/products/${id}`, 'DELETE');
+                  cache.products = null;
+                  await loadList();
+                } catch (err) {
+                  alert(err.message);
+                }
+              });
+            });
+          } catch (err) {
+            tableContainer.innerHTML = `<p>Erreur: ${escapeHtml(err.message || 'Impossible de charger les produits.')}</p>`;
+          }
+        };
+
+        if (refreshBtn) {
+          refreshBtn.addEventListener('click', loadList);
+        }
+
+        const addBtn = document.getElementById('addProdBtn');
+        if (addBtn) {
+          addBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('newProdName');
+            const catSelect = document.getElementById('newProdCat');
+            const name = nameInput.value.trim();
+            const categoryId = parseInt(catSelect.value, 10);
+            if (!name || !categoryId) {
+              alert('Merci de renseigner le nom et la catégorie.');
+              return;
+            }
+            try {
+              await apiRequest('/api/products', 'POST', { name, category_id: categoryId });
+              cache.products = null;
+              nameInput.value = '';
+              catSelect.value = '';
+              await loadList();
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+        }
+
+        loadList();
+      }
 
       async function loadConsolidation() {
         content.innerHTML = '<div class="header"><h1>Consolidation</h1></div><p>Chargement...</p>';
