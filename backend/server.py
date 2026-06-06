@@ -207,23 +207,22 @@ class RequestHandler(BaseHTTPRequestHandler):
         cur = conn.execute('SELECT id, username, role, boutique_id FROM users WHERE username=?', (username,))
         row = cur.fetchone()
         if row:
-            user_id = row[0]
-            log_action(conn, user_id, 'login')
-            self._set_headers(200)
-            self.wfile.write(json.dumps({'user': {'id': row[0], 'username': row[1], 'role': row[2], 'boutique_id': row[3]}}).encode())
-            return
-        # If boutique role, ensure boutique exists
-        boutique_id = None
-        if role == 'boutique':
-            if boutique_name:
-                cur = conn.execute('SELECT id FROM boutiques WHERE name=?', (boutique_name,))
-                b = cur.fetchone()
-                if b:
-                    boutique_id = b[0]
-                else:
-                    conn.execute('INSERT INTO boutiques (name) VALUES (?)', (boutique_name,))
-                    boutique_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        # Create user
+    user_id = row[0]
+    boutique_id = row[3]
+    if row[2] == 'boutique' and boutique_id is None and boutique_name:
+        cur2 = conn.execute('SELECT id FROM boutiques WHERE name=?', (boutique_name,))
+        b = cur2.fetchone()
+        if b:
+            boutique_id = b[0]
+        else:
+            conn.execute('INSERT INTO boutiques (name) VALUES (?)', (boutique_name,))
+            boutique_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.execute('UPDATE users SET boutique_id=? WHERE id=?', (boutique_id, user_id))
+        conn.commit()
+    log_action(conn, user_id, 'login')
+    self._set_headers(200)
+    self.wfile.write(json.dumps({'user': {'id': row[0], 'username': row[1], 'role': row[2], 'boutique_id': boutique_id}}).encode())
+    return
         conn.execute('INSERT INTO users (username, role, boutique_id) VALUES (?, ?, ?)', (username, role, boutique_id))
         user_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         conn.commit()
