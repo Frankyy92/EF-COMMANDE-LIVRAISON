@@ -13,9 +13,13 @@ const API_BASE = (() => {
     const params = (() => {
       try {
         return new URLSearchParams(location ? location.search : '');
-      } catch (_) {
-        return null;
-      }
+    } catch (err) {
+    if (err instanceof TypeError) {
+        lastError = err;
+    } else {
+        throw err;
+    }
+}
     })();
 
     // Allow overriding via query string (?api_base=...), stored for next visits.
