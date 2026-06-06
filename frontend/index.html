@@ -43,7 +43,7 @@
     const boutiqueBlock = document.getElementById('boutiqueBlock');
     roleEl.addEventListener('change', () => {
       boutiqueBlock.classList.toggle('hidden', roleEl.value !== 'boutique');
-    });
+    }); updateBoutiqueBlock();
 
     // Au clic sur "Se connecter" :
     document.getElementById('loginBtn').addEventListener('click', async () => {
